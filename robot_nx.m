@@ -2,12 +2,15 @@ classdef robot_nx < handle
     properties (Constant = true)
         % Vehicle
         T = 0.5;            % sampling period
-        stdev_v = 0.1;     % motion noise
-        stdev_w = deg2rad(5);
+        %stdev_v = 0.1;     % motion noise
+        %stdev_w = deg2rad(5);
+        
+        stdev_v = 0;     % no motion noise
+        stdev_w = 0;
         
         % Sensor 
         fov = deg2rad(94); %deg2rad(94);     % deg2rad(124);
-        r_sense = 10;          % meter
+        r_sense = 100;          % meter
         
         % Detection model
         %p0 = [0.9474; 0.8797; 0.9173; 1.0000; 0.8872];
