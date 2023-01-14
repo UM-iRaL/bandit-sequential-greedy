@@ -4,7 +4,7 @@ close;
 num_rep = 1;
 run_len = 200;
 num_robot = 1;
-num_tg = 1;
+num_tg = 2;
 map_size = 70;
 
 % Action set for robots
@@ -22,15 +22,17 @@ x_true(1, 1,:, :) = repmat([0;-20;0],1,num_rep);
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
-tg_true(:,1,1,:) = repmat([-36;-20;1],1,num_rep);
+% first two are position, last one is id
+tg_true(:,1,1,:) = repmat([20;0;1],1,num_rep);
+tg_true(:,2,1,:) = repmat([40;0;1],1,num_rep);
 
 % Measurement History Data
 z_d_save = cell(run_len,num_robot,num_rep); % target measurements
 u_save = zeros(run_len,num_robot,2,num_rep); % control
 
 % Esitimate Data
-tg_save = cell(run_len,num_rep);
-tg_cov_save = cell(run_len,num_rep);
+tg_save = cell(run_len,num_rep, num_tg);
+tg_cov_save = cell(run_len,num_rep, num_tg);
 
 % Should we get video and image?
 vid = false;
@@ -71,7 +73,12 @@ for rep = 1:num_rep
 
     
     for t = 1:run_len
-
+        % Sense
+        for r = 1:num_robot
+            % targets
+            z_d_save{t, r, rep} = R(r).sense(tg_true(:,:, t, rep)');
+        end
+        
         % Plan Moves
         for r = 1:num_robot
             u_save(t, r, :, rep) = ACTION_SET(:,2);
@@ -79,21 +86,56 @@ for rep = 1:num_rep
         % Move Robots
         for r = 1:num_robot
             R(r).move(squeeze(u_save(t, r, :, rep)));
+            x_true(t+1,r,:,rep) = R(r).get_x();
         end
         % Move Targets
         for tg = 1:num_tg
-
+            
         end
         % Log Mearsurement
             % 1. Maintain a map from robots to detected targets
-            % 2. Compute covariance
-        % Map
-        tg_cov_save{t, rep} = rand(2,2, num_tg);
-        tg_save{t, rep} = zeros(2, num_tg);
+            % 2. Compute covariance based on map
+            
+            
+        % Key is robot id, Value is a collection of target ids
+        target_map = containers.Map('KeyType','double','ValueType','any'); 
         for r = 1:num_robot
-            x_true(t+1,r,:,rep) = R(r).get_x();
-            %R(r).get_x()
+            Z_d = z_d_save{t, r, rep};
+%             if size(Z_d, 1) ~= 0
+%                 tg_ids = Z_d(:, end);
+%                 target_map(r) = tg_ids;
+%             end
+            target_map(r) = Z_d;
         end
+                
+        % Compute variance
+        for r = 1:num_robot
+            msrmnt_rb = target_map(r);
+            if size(msrmnt_rb, 1) == 0
+                continue;
+            end
+            for k = 1 : size(msrmnt_rb, 1)
+                target_id = msrmnt_rb(k, end);
+                if(isempty(tg_save{t, rep, target_id}))
+                    % first measurement
+                    tg_save{t, rep, target_id} = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2));
+                    cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
+                    tg_cov_save{t, rep, target_id} = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
+                else
+                    % sensor fusion
+
+                end
+
+            end
+        end
+        
+        
+        
+        % Log covariance
+        tg_cov_save{t, rep} = rand(2, 2, num_tg);
+        tg_save{t, rep} = zeros(2, num_tg);
+        
+
             
             
             
