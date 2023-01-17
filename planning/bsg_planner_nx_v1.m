@@ -1,22 +1,23 @@
 classdef bsg_planner_nx_v1 < handle
-    properties (SetAccess = protected, GetAccess = public)
+    properties (SetAccess = public, GetAccess = public)
         actions;        % discrete action set
         n_actions;      % number of actions
         action_indices; 
         robot_idx;
         num_robot;
-        ncov;
-        att_state = 'none';
-        att_save = [];
-        % OSG params
+
+        next_action_index;
+        % BSG params
         J; % number of experts
-        g;
+        e;
         beta;
+        eta;
         gamma;
         expert_weight;
         action_weight;
         action_prob_dist;
         loss;
+        loss_estm;
         
         %
         som;
@@ -31,19 +32,22 @@ classdef bsg_planner_nx_v1 < handle
             this.actions = actions;
             this.n_actions = length(actions);
             this.action_indices = 1:this.n_actions;
-            
+            this.next_action_index = ones(n_time_step, 1);
+            learning_const = 4;
             this.J = ceil(log(n_time_step));
-            this.g = sqrt(log(this.J) / n_time_step);
-            this.beta = 1 / n_time_step;
-            this.gamma = zeros(this.J, 1);
+            this.e = learning_const*sqrt(log(this.J) / 2 / n_time_step);
+            this.beta = 1 / (n_time_step - 1);
+            this.eta = zeros(this.J, 1);
             for j = 1 : this.J
-                this.gamma(j) = sqrt(log(this.n_actions*n_time_step)/pow2(j-1));
+                this.eta(j) = learning_const*sqrt(log(this.n_actions*n_time_step) / pow2(j-1) / this.n_actions);
             end
+            this.gamma = this.eta / 2;
             this.expert_weight = 1 / this.J * ones(n_time_step, this.J);
             this.action_weight = 1 / this.n_actions * ones(n_time_step, this.J, this.n_actions);
             this.action_prob_dist = zeros(n_time_step, this.n_actions);
             this.loss = zeros(n_time_step, this.n_actions);
-            this.ncov = zeros(n_time_step, this.n_actions);
+            this.loss_estm = zeros(n_time_step, this.n_actions);
+            
             
             this.som.r_sense = r_sense;
             this.som.fov = fov;
@@ -61,15 +65,18 @@ classdef bsg_planner_nx_v1 < handle
         function update_experts(this, t)
             % update weights
             for j = 1:this.J
+                %nxt_a_idx = this.next_action_index(t);
+                this.loss_estm(t, this.next_action_index(t)) = this.loss(t, this.next_action_index(t)) /...
+                    (this.action_prob_dist(t, this.next_action_index(t)) + this.gamma(j));
                 v = zeros(this.n_actions,1);
                 for i = 1 : this.n_actions
-                    v(i) = this.action_weight(t, j, i) * exp(-this.gamma(j)*this.loss(t, i));
+                    v(i) = this.action_weight(t, j, i) * exp(-this.eta(j)*this.loss_estm(t, i));
                 end
                 W_t = sum(v);
-                this.action_weight(t+1,j,:) = this.beta*W_t + (1-this.beta)*v;
+                this.action_weight(t+1,j,:) = this.beta*W_t/this.n_actions + (1-this.beta)*v;
                     
                 this.expert_weight(t+1,j) = this.expert_weight(t, j)*...
-                    exp(-this.g*this.loss(t,:)*(reshape(this.action_weight(t, j,:), this.n_actions,[])/norm(squeeze(this.action_weight(t, j,:)),1)));
+                    exp(-this.e*this.loss_estm(t,:)*(reshape(this.action_weight(t, j,:), this.n_actions,[])/norm(squeeze(this.action_weight(t, j,:)),1)));
             end
             % normalize weights by 1-Norm
             for j = 1:this.J
@@ -151,12 +158,12 @@ classdef bsg_planner_nx_v1 < handle
             num_tg = size(y, 1);
             for kk = 1 : num_tg
                 cur_y = y(kk, 1:2);
-                range = norm(cur_x(1:2) - cur_y );
+                range = norm(cur_x(1:2) - cur_y);
                 bearing = bearing_nx(cur_x(1), cur_x(2),cur_y(1), cur_y(2));
                 % check if kkth target is in the field of view of rth
                 % robot.
                 if range < this.som.r_sense && abs(restrict_angle(bearing-cur_x(3))) <= this.som.fov/2
-                    obj_tg(kk) = obj_tg(kk) - 1 / (range.^2);
+                    obj_tg(kk) = obj_tg(kk) - 1 / (range.^2 + 5);
                 end
             end
             obj = 0;
@@ -168,7 +175,9 @@ classdef bsg_planner_nx_v1 < handle
                 end
                 obj = obj + 1/obj_tg(kk);
             end
-            
+            obj_empty = -(2*map_size^2)*num_tg;
+
+            this.loss(t, this.next_action_index(t)) = 1 - (obj - obj_empty) / (-obj_empty);
             % obj is all you want
             
             
