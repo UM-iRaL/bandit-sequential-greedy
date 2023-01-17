@@ -1,4 +1,4 @@
-classdef osg_planner_nx_v1 < handle
+classdef bsg_planner_nx_v1 < handle
     properties (SetAccess = protected, GetAccess = public)
         actions;        % discrete action set
         n_actions;      % number of actions
@@ -25,7 +25,7 @@ classdef osg_planner_nx_v1 < handle
         
     end
     methods
-        function this = osg_planner_nx_v1(num_robot, robot_idx, actions, n_time_step, samp,r_sense, fov, stdev_z)
+        function this = bsg_planner_nx_v1(num_robot, robot_idx, actions, n_time_step, samp, r_sense, fov, stdev_z)
             this.num_robot = num_robot;
             this.robot_idx = robot_idx;
             this.actions = actions;
@@ -97,128 +97,97 @@ classdef osg_planner_nx_v1 < handle
             end
         end
         
-        function losses_after_action(this, t,robot_idx, x, x_cov,  y, xy_cholimat, exp_y, fixed_x, fixed_u)
-            %% still undefined
-            % after take action for robot(robot_idx), the loss function
-            % becomes ...
-            % TODO: 
-            % 1. get R_prev
-            % 2. for every u, get A, W, V, H
-            % 3. using SRIF to update R_Prev and calculate cost.
-            % get A,W,V,H to update,  
-            % @INPUT: 
-            % robot_idx: current robot id, for robots that idx
-            %            is 1:robot_idx-1,  loss has been updated.
-            %        x:  3 x 1
-            %        y: num_y x 2
-            %xy_cholimat: cholimat of robots' poses of last time step and current targets' positions.     
-            %[att,att_cholimat] = this.get_attractor(x,x_cov,y,y_cov,exp_y_cl);
+        function obj_tg = losses_after_action(this, t, robot_idx, x,  y, u, prev_obj_tg)
+            % Description: 
+            % given fixed actions of robots whose indexes are smaller than 
+            % robot_idx and observed targets at current time t+1, calculate 
+            % objective function after robot(robot_idx) having executed
+            % specified action.
+            % Input:
+            % t: time t
+            % x: robot positions
+            % y: target positions
+            % fixed_u: control signals that has been determined by planner.
+            % fixed_x: 
+            % Output:
+            % obj_tg: obj_tg(kk) contains kkth target of corresponding 
+            % sum -1/(r.^2)
             
-            if isempty(y)
-                numel_y = 0;
-                y_init = exp_y;
-            else
-                y = y(:,1:2);
-                numel_y = numel(y);
-                y_init = [y; exp_y];
-            end
-            obj_fun = @logdetchol_wz;
-%             num_all_x = size(xy_cholimat, 1) - numel_y;
-            num_all_x = this.num_robot*3;
+            % f(A_{i-1})
 
-            %this.som.H = @(x) H_rb_xy(transpose(x(1:3,:)),y_init,this.som.r_sense,this.som.fov,num_all_x-3);
-            this.som.H = @(rx, num_sep) H_rb_xy(transpose(rx(1:3,:)),y_init,this.som.r_sense,this.som.fov, num_sep);
-            numel_y_init = numel(y_init);
-            numel_exp_y = numel(exp_y);
-            idx = 1:numel_y_init*robot_idx;
-            this.som.V = sparse(idx,idx,repmat(this.som.stdev_z.^2,(numel_y_init/2)*robot_idx,1));
-            this.som.chol_inv_V = sparse(idx,idx,repmat(1./this.som.stdev_z,(numel_y_init/2)*robot_idx,1));
-            
-            x = x(:);
-            nX = this.smm.f(x, this.actions);
-            nX = reshape(nX, 3, []);
-            num_nx = size(nX, 2);
-            ncov = zeros(1,num_nx);
-            if size(xy_cholimat, 1) ~= num_all_x + numel_y
-                xy_cholimat = blkdiag(xy_cholimat, zeros(abs(num_all_x + numel_y - size(xy_cholimat, 1))));
-                disp("change");
-
-            end
-            R_t = [xy_cholimat, sparse(num_all_x+numel_y, numel_exp_y);
-                   sparse(numel_exp_y, num_all_x+numel_y),speye(numel_exp_y)];
-            %% 
-            fixed_x = reshape(cell2mat(fixed_x),3,[]);
-            fixed_u = reshape(cell2mat(fixed_u),2,[]);
-            if robot_idx > 1
-                
-                % fixed_H = this.som.H(fixed_x(:, 1:robot_idx-1), num_all_x-(robot_idx-1)*3);
-                % H_temp = zeros(numel_y_init, size(R_t,1), robot_idx-1);
-                fixed_H = zeros(numel_y_init*(robot_idx-1), size(R_t,1));
-                fixed_A = zeros(3*(robot_idx-1), 3*(robot_idx-1));
-                for i = 1:robot_idx-1
-                    fixed_H(numel_y_init*(i-1)+1:numel_y_init*i,3*(i-1)+1:end) = this.som.H(fixed_x(:, i), num_all_x-i*3);                    
-                    
-                    fixed_A(3*(i-1)+1:3*(i-1)+3,3*(i-1)+1:3*(i-1)+3) = dd_motion_model_jacobian_x(fixed_x(:, i), fixed_u(:, i), this.smm.samp);
-                    
+            %{
+            num_tg = size(y,1);
+            obj_tg = zeros(num_tg, 1);
+            for r = 1 : robot_idx-1
+                % determine if targets are in the fov of robots 
+                % get range, sum 1/r.2 per target
+                cur_x = fixed_x{r};
+                for kk = 1 : num_tg
+                    cur_y = y(k, 1:2);
+                    range = norm(cur_x(1:2) - cur_y );
+                    bearing = bearing_nx(cur_x(1), cur_x(2),cur_y(1), cur_y(2));
+                    % check if kkth target is in the field of view of rth
+                    % robot.
+                    if range < this.som.r_sense && abs(restrict_angle(bearing-cur_x(3))) <= this.som.fov/2 
+                        obj_tg(kk) = obj_tg(kk) - 1 / (range.^2); 
+                    end
                 end
-                %TODO: use fixed_A and fixed_H to compute f(A_{t-1})
-                idx = 1:numel_y_init*(robot_idx-1);
-                fixed_chol_inv_V = sparse(idx,idx,repmat(1./this.som.stdev_z,(numel_y_init/2)*(robot_idx-1),1));
-                idx = 1:3*(robot_idx-1);
-                fixed_ciW = sparse(idx,idx,repmat(diag(this.tmm.chol_inv_W),robot_idx-1,1));
-                fixed_S = srif_pe(R_t, fixed_A, fixed_ciW, fixed_H, fixed_chol_inv_V);  
-                %old_cost = -sum(abs(diag(fixed_S)));
-                old_cost = -obj_fun(fixed_S);
-%               old_cost = -logdetchol_nx(fixed_S);
-                %old_cost = -weighted_logdetchol_nx1(fixed_S, this.num_robot*3);
             end
-            
-            A = this.tmm.A(x, this.actions);
 
-            idx = 1:3*robot_idx;
-            ciW = sparse(idx,idx,repmat(diag(this.tmm.chol_inv_W),robot_idx,1));
-            
-            for i = 1:num_nx
-                %TO DO:
-                %[A, W, H, V] =
-                % srif_pe
-                % get cost
-                H_cur = this.som.H(nX(:, i),num_all_x-robot_idx*3);
-                H_cur = [zeros(numel_y_init, size(R_t,1) - size(H_cur,2)) this.som.H(nX(:, i),num_all_x-robot_idx*3)];
-                
-                if robot_idx > 1
-                    % patch H of different sizes. 
-                    A_cur = blkdiag(fixed_A, A(:,:,i));
-                    H_cur = [fixed_H; H_cur];
-                    S = srif_pe(R_t, A_cur, ciW, H_cur, this.som.chol_inv_V);
-                    ncov(i) =  - obj_fun(S) - old_cost;
-%                     ncov(i) = old_cost-logdetchol_nx(S);
-                    %ncov(i) = old_cost-weighted_logdetchol_nx1(S, this.num_robot*3);
-                    if ncov(i) == Inf || ncov(i) == -Inf
-                        warning("unwanted value");
-                    end
-                    
-                else
-                    A_cur = A(:,:,i);
-                    H_cur = [zeros(numel_y_init, size(R_t,1) - size(H_cur,2)) H_cur];
-                    S = srif_pe(R_t, A_cur, ciW, H_cur, this.som.chol_inv_V);
-                    ncov(i) = -obj_fun(S);
-%                     ncov(i) = -logdetchol_nx(S);
-                    %ncov(i) = -weighted_logdetchol_nx1(S, this.num_robot*3);
-                    if ncov(i) == Inf || ncov(i) == -Inf || ncov(i) > 0
-                        warning("unwanted value");
-                    end
-                end                            
+            obj = 0;
+            map_size = 70;
+            for kk = 1:num_tg
+                if obj_tg(kk) == 0 % meaning this target has not been detected by one single robot
+                    % assume a number?
+                    obj_tg(kk) = -1/(2*map_size^2);
+                end
+                obj = obj + 1/obj_tg(kk);
             end
+            %}
+
+            % f(a_i | A_{i-1})
+            cur_x = this.smm.f(x, u);
+            obj_tg = prev_obj_tg;
+            num_tg = size(y, 1);
+            for kk = 1 : num_tg
+                cur_y = y(kk, 1:2);
+                range = norm(cur_x(1:2) - cur_y );
+                bearing = bearing_nx(cur_x(1), cur_x(2),cur_y(1), cur_y(2));
+                % check if kkth target is in the field of view of rth
+                % robot.
+                if range < this.som.r_sense && abs(restrict_angle(bearing-cur_x(3))) <= this.som.fov/2
+                    obj_tg(kk) = obj_tg(kk) - 1 / (range.^2);
+                end
+            end
+            obj = 0;
+            map_size = 70;
+            for kk = 1:num_tg
+                if obj_tg(kk) == 0 % meaning this target has not been detected by one single robot
+                    % assume a number?
+                    obj_tg(kk) = -1/(2*map_size^2);
+                end
+                obj = obj + 1/obj_tg(kk);
+            end
+            
+            % obj is all you want
+            
+            
+            
+            
+            %{
             this.ncov(t, :) = ncov - max(ncov);
             
             this.loss(t, :) = this.ncov(t, :)/max(abs(this.ncov(t, :)));    % in [-1, 0], -1 with biggest weight.
-             g=sprintf('%2f ', this.loss(t,:));
-             sprintf('loss vector of robot %i is %s \n', robot_idx, g)
+            g=sprintf('%2f ', this.loss(t,:));
+            sprintf('loss vector of robot %i is %s \n', robot_idx, g)
             if sum(isnan(this.loss(t, :))) > 0
                 warning("nan value is not valid");
             end
+            %}
         end
+        
+        
+        
         
         % helper functions
         function [min_y, min_y_cov, max_y, max_y_cov] = get_minmax_y(y,y_cov)
@@ -344,77 +313,9 @@ classdef osg_planner_nx_v1 < handle
             end
         end
     end
-
-      %         function get_losses(this, t, rep, y_d, x, robot_idx)
-%             % Description:
-%             % get losses by measuring the distance between robots and
-%             % targets.
-%             % INPUT:
-%             % t: time idx
-%             % y_d: position of dynamic target,
-%             % 3*num_y_d*(run_len+1)*num_rep
-%             % x: position of robots
-%             % (run_len+1)*num_robot*3*num_rep)
-%             % robot_idx: index of robot
-%             losses = zeros(1, this.n_actions);
-%             obj_action = zeros(1, this.n_actions);
-%             time_sample = 0.5;
-%             for i = 1:this.n_actions
-%                 action = this.action_indices(i);
-%                 % if apply actions(i) to x(t-1), current state would be
-%                 if t > 1
-%                     cur_pos_x = dd_motion_model(squeeze(x(t-1, robot_idx, :, rep)), this.actions(:, action), time_sample);
-%                 else
-%                     cur_pos_x = dd_motion_model(squeeze(x(1, robot_idx, :, rep)), this.actions(:, action), time_sample);
-%                 end
-%                 num_target = size(y_d, 2);
-%                 for j = 1:num_target
-%                     obj_action(i) = obj_action(i) + 1 / (norm(y_d(1:2, j, t,rep) - cur_pos_x(1:2) + 0.0001));
-%                 end
-%             end
-%             obj_action = normalize(obj_action,'range');
-%             
-%             % 
-%             if robot_idx == 1
-%                 losses = - obj_action / max(obj_action);
-%                 
-%             else
-%                 curr_obj = 0;
-%                 for j = 1 : size(y_d, 2)
-%                     min_dist = inf;
-%                     for r = 1 : robot_idx-1
-%                         if norm(y_d(1:2, j, t,rep) - squeeze(x(t, r, 1:2, rep)) + 0.001) < min_dist
-%                             min_dist = norm(y_d(1:2, j, t,rep) - squeeze(x(t, r, 1:2, rep)) + 0.0001);
-%                         end
-%                     end
-%                     curr_obj = curr_obj + 1 / min_dist;
-%                 end
-%                 
-%                 for i = 1:this.n_actions
-%                     temp_obj = 0;
-%                     action = this.action_indices(i);
-%                     if t > 1
-%                         cur_pos_x = dd_motion_model(squeeze(x(t-1, robot_idx, :, rep)), this.actions(:, action), time_sample);
-%                     else
-%                         cur_pos_x = dd_motion_model(squeeze(x(1, robot_idx, :, rep)), this.actions(:, action), time_sample);
-%                     end
-%                     
-%                     for j = 1 : size(y_d, 2)
-%                         min_dist = norm(y_d(1:2, j, t,rep) - cur_pos_x(1:2) + 0.001);
-%                         for r = 1 : robot_idx-1
-%                             if norm(y_d(1:2, j, t,rep) - squeeze(x(t, r, 1:2, rep)) + 0.001) < min_dist
-%                                 min_dist = norm(y_d(1:2, j, t,rep) - squeeze(x(t, r, 1:2, rep)) + 0.0001);
-%                             end
-%                         end
-%                         temp_obj = temp_obj + 1 / min_dist;
-%                     end
-%                     losses(i) = (curr_obj - temp_obj) / max(obj_action);
-%                 end
-%                 
-%             end
-%             this.loss(t, :) = losses;            
-%         end  
 end
+
+
 function d = weighted_trace(R, dy)
     scale = 1;
     
