@@ -91,7 +91,7 @@ classdef bsg_planner_nx_v1 < handle
         
 
         
-        function get_action_prob_dist(this, t)
+        function update_action_prob_dist(this, t)
 %             if t == 1
 %                 this.action_prob_dist(t, :) = 1/this.n_actions*ones(1, this.n_actions);
 %             end
@@ -104,7 +104,7 @@ classdef bsg_planner_nx_v1 < handle
             end
         end
         
-        function obj_tg = losses_after_action(this, t, robot_idx, x,  y, u, prev_obj_tg)
+        function [loss, obj_mat] = losses_after_action(this, t, robot_idx, x,  y, u, prev_loss, prev_obj_mat)
             % Description: 
             % given fixed actions of robots whose indexes are smaller than 
             % robot_idx and observed targets at current time t+1, calculate 
@@ -154,30 +154,24 @@ classdef bsg_planner_nx_v1 < handle
 
             % f(a_i | A_{i-1})
             cur_x = this.smm.f(x, u);
-            obj_tg = prev_obj_tg;
+            obj_mat = prev_obj_mat;
             num_tg = size(y, 1);
             for kk = 1 : num_tg
-                cur_y = y(kk, 1:2);
-                range = norm(cur_x(1:2) - cur_y);
-                bearing = bearing_nx(cur_x(1), cur_x(2),cur_y(1), cur_y(2));
-                % check if kkth target is in the field of view of rth
-                % robot.
-                if range < this.som.r_sense && abs(restrict_angle(bearing-cur_x(3))) <= this.som.fov/2
-                    obj_tg(kk) = obj_tg(kk) - 1 / (range.^2 + 5);
+                cur_y = y(kk, 1:2)';  
+                valid = visibility(cur_x, cur_y, this.som.r_sense, this.som.fov);
+                if valid
+                    range = norm(cur_x(1:2) - cur_y);
+                    obj_mat(kk) = obj_mat(kk) - 1 / (range.^2);
                 end
             end
-            obj = 0;
-            map_size = 70;
-            for kk = 1:num_tg
-                if obj_tg(kk) == 0 % meaning this target has not been detected by one single robot
-                    % assume a number?
-                    obj_tg(kk) = -1/(2*map_size^2);
-                end
-                obj = obj + 1/obj_tg(kk);
-            end
-            obj_empty = -(2*map_size^2)*num_tg;
 
-            this.loss(t, this.next_action_index(t)) = 1 - (obj - obj_empty) / (-obj_empty);
+            cur_reward = reward_function(obj_mat);
+
+            prev_reward = 1 - prev_loss;
+            dimi_reward = cur_reward - prev_reward;
+            loss = 1 - dimi_reward;
+            this.loss(t, this.next_action_index(t)) = loss;
+            
             % obj is all you want
             
             

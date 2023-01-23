@@ -2,10 +2,12 @@ clear;
 close;
 % Experiment parameters
 num_rep = 1;
-run_len = 500;
-num_robot = 2;
+run_len = 1000;
+num_robot = 3;
 num_tg = 2;
-map_size = 70;
+map_size = 100;
+
+rng(1,'philox');
 
 % Action set for robots
 [V,W] = meshgrid([1],[0, -1, 1, -2, 2]);
@@ -20,12 +22,14 @@ vis_map_save = cell(run_len,num_rep);
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
 x_true(1, 1, :, :) = repmat([-30;-30;0],1,num_rep);
 x_true(1, 2, :, :) = repmat([30; 30; pi/4],1,num_rep);
+x_true(1, 3, :, :) = repmat([-30; 0; pi/4],1,num_rep);
+
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
 tg_true(:,1,1,:) = repmat([20;0;1],1,num_rep);
-tg_true(:,2,1,:) = repmat([40;0;2],1,num_rep);
+tg_true(:,2,1,:) = repmat([-40;-40;2],1,num_rep);
 
 % Measurement History Data
 z_d_save = cell(run_len,num_robot,num_rep); % target measurements(range-bearing)
@@ -38,7 +42,7 @@ tg_cov_save = cell(run_len,num_rep);
 % Should we get video and image?
 vid = false;
 viz = true;
-
+vid_name = 'video\test_1.avi';
 
 for rep = 1:num_rep
     % Setting
@@ -48,6 +52,9 @@ for rep = 1:num_rep
         R(r) = robot_nx(x_true(1, r, :, :));
         P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
+
+        G(r) = greedy_planner_v1(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
+            R(r).fov);
     end
     % Visualization
     if viz
@@ -74,7 +81,9 @@ for rep = 1:num_rep
         ylabel('y [m]','FontSize',14);
         drawnow;
         if vid
-            
+            writerObj = VideoWriter(vid_name);
+            writerObj.FrameRate = 25;
+            open(writerObj);
         end
     end
 
@@ -88,12 +97,22 @@ for rep = 1:num_rep
         end
 
         fixed_x0 = cell(num_robot,1); fixed_u = cell(num_robot,1);
+
         % Plan Moves
+        prev_loss = 1;
+        prev_obj_mat = zeros(num_tg, 1);
         for r = 1:num_robot
-            P(r).get_action_prob_dist(t);
-            P(r).next_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
-            u_save(t, r, :, rep) = ACTION_SET(:, P(r).next_action_index(t));
-            %fixed_u{r} = u_save(t, r, :, rep);
+%             % BSG
+%             P(r).update_action_prob_dist(t);
+%             P(r).next_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
+%             u_save(t, r, :, rep) = ACTION_SET(:, P(r).next_action_index(t));
+
+            % Greedy
+            [loss, obj_mat, action_idx] = G(r).greedy_action(t, r, squeeze(x_true(t, r, :, rep)), tg_true(:, :, t, rep)', prev_loss, prev_obj_mat);
+            pre_loss = loss;
+            pre_obj_mat = obj_mat;
+            u_save(t, r, :, rep) = ACTION_SET(:,action_idx);
+            
         end
 
         % Move Targets
@@ -110,8 +129,9 @@ for rep = 1:num_rep
             end
         end
         
-        % Move Robots
-        prev_obj_tg = zeros(num_tg, 1);
+        % BSG: update experts after selecting actions
+        prev_loss = 1;
+        prev_obj_mat = zeros(num_tg, 1);
         for r = 1:num_robot
             R(r).move(squeeze(u_save(t, r, :, rep)));
             x_true(t+1,r,:,rep) = R(r).get_x();
@@ -119,8 +139,9 @@ for rep = 1:num_rep
             % f(a_i|A_{i-1})
 
             % P(r).loss_after_action
-            obj_tg = P(r).losses_after_action(t, r, squeeze(x_true(t,r,:,rep)), tg_true(:,:, t+1, rep)', squeeze(u_save(t, r, :, rep)), prev_obj_tg);
-            prev_obj_tg = obj_tg;
+            [loss, obj_mat] = P(r).losses_after_action(t, r, squeeze(x_true(t,r,:,rep)), tg_true(:,:, t+1, rep)', squeeze(u_save(t, r, :, rep)), prev_loss, prev_obj_mat);
+            prev_obj_mat = obj_mat;
+            prev_loss = loss;
             P(r).update_experts(t);
         end
         
@@ -134,10 +155,6 @@ for rep = 1:num_rep
         target_map = containers.Map('KeyType','double','ValueType','any'); 
         for r = 1:num_robot
             Z_d = z_d_save{t, r, rep};
-%             if size(Z_d, 1) ~= 0
-%                 tg_ids = Z_d(:, end);
-%                 target_map(r) = tg_ids;
-%             end
             target_map(r) = Z_d;
         end
         estm_tg = zeros(2, num_tg);
@@ -210,7 +227,6 @@ for rep = 1:num_rep
                 h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),'g',2.2);
                 h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
             end
-            
             tmp = tg_save{t, rep};
             if ~isempty(tmp)
                 h0.tg_cov = draw_covariances_nx(h0.tg_cov, tmp(:,1:2), tg_cov_save{t,rep},'m');
@@ -222,11 +238,15 @@ for rep = 1:num_rep
             title(sprintf('Time Step: %d',t));
            
             drawnow;
-            pause(0.125)
+            %pause(0.125)
             if vid
-                
+                currFrame = getframe(gcf);
+                writeVideo(writerObj, currFrame);
             end
         end
+    end
+    if viz && vid
+        close(writerObj);
     end
 end
 % Plot Measurement
