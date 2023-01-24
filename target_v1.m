@@ -10,22 +10,22 @@ classdef target_v1 < handle
     end
 
     methods
-        function this = target(v,x,n_time_step, type)
+        function this = target_v1(v,x,n_time_step, type)
             % Initialization
             % x->1 x 3 (x, y, id)
             
             
             this.v = v;
-            this.x = zeros(n_time_step, 3);
+            this.x = zeros(n_time_step+1, 3);
             this.x(1,:) = x;
             % assign ids
             this.x(:, 3) = x(3);
             this.type = type;
             this.n_time_step = n_time_step;
             if this.type == 'circle'
-                ang_v = 2*pi/n_time_step;
+                ang_v = 12*pi/n_time_step;
                 radius = this.v / ang_v;                
-                origin = zeors(1, 2);
+                origin = zeros(1, 2);
                 origin(1) = this.x(1, 1) - radius;
                 origin(2) = this.x(1, 2);
                 for t = 1:this.n_time_step
@@ -38,15 +38,17 @@ classdef target_v1 < handle
         function move(this, t)
             %METHOD1 Summary of this method goes here
             %   Detailed explanation goes here
-            if this.type == 'circle'
+            if strcmp(this.type,'circle')
                 ; %do notihing.
-            elseif this.type == 'rectangular'
+            elseif strcmp(this.type, 'rect')              
                 this.x(t+1, :) = this.x(t, :);
-            elseif this.type == 'random'
+            elseif strcmp(this.type, 'random')
+                theta = rand*2*pi;
+                this.x(t+1, 1:2) = this.x(t, 1:2) + rand*this.v*[cos(theta) sin(theta)];
+            elseif strcmp(this.type, 'triangular')
                 this.x(t+1, :) = this.x(t, :);
-            elseif this.type == 'triangular'
-                this.x(t+1, :) = this.x(t, :);
-            elseif this.type == 'zigzag'
+            elseif strcmp(this.type, 'zigzag')
+
             else
                 error('unseen type.')
             end

@@ -1,4 +1,4 @@
-clear;
+clear all;
 close;
 % Experiment parameters
 num_rep = 1;
@@ -38,24 +38,33 @@ u_save = zeros(run_len,num_robot,2,num_rep); % control
 % Esitimate Data
 tg_save = cell(run_len,num_rep);
 tg_cov_save = cell(run_len,num_rep);
+all_tg_cov = zeros(2*num_tg, 2*num_tg, run_len, num_rep);
 
 % Should we get video and image?
 vid = false;
 viz = true;
-vid_name = 'video\test_1.avi';
+vid_name = 'video\fancy_traj.avi';
+%planner_name = 'greedy';
+planner_name = 'bsg';
 
 for rep = 1:num_rep
     % Setting
 
     % Create Robots and Planners
+    %R = struct(robot_nx);
+    %P = struct([]);
+    %G = struct([]);
     for r = 1:num_robot
-        R(r) = robot_nx(x_true(1, r, :, :));
+        R(r) = robot_nx(x_true(1, r, :, rep));
         P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
 
         G(r) = greedy_planner_v1(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
+    
+    T(1) = target_v1(2, tg_true(:,1,1,rep), run_len, 'circle');
+    T(2) = target_v1(3, tg_true(:,2,1,rep), run_len, 'random');
     % Visualization
     if viz
         figure('Color',[1 1 1],'Position',[100,277,1200,800]);
@@ -102,16 +111,18 @@ for rep = 1:num_rep
         prev_loss = 1;
         prev_obj_mat = zeros(num_tg, 1);
         for r = 1:num_robot
-%             % BSG
-%             P(r).update_action_prob_dist(t);
-%             P(r).next_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
-%             u_save(t, r, :, rep) = ACTION_SET(:, P(r).next_action_index(t));
-
             % Greedy
-            [loss, obj_mat, action_idx] = G(r).greedy_action(t, r, squeeze(x_true(t, r, :, rep)), tg_true(:, :, t, rep)', prev_loss, prev_obj_mat);
-            pre_loss = loss;
-            pre_obj_mat = obj_mat;
-            u_save(t, r, :, rep) = ACTION_SET(:,action_idx);
+            if strcmp(planner_name, 'greedy')
+                [loss, obj_mat, action_idx] = G(r).greedy_action(t, r, squeeze(x_true(t, r, :, rep)), tg_true(:, :, t, rep)', prev_loss, prev_obj_mat);
+                pre_loss = loss;
+                pre_obj_mat = obj_mat;
+                u_save(t, r, :, rep) = ACTION_SET(:,action_idx);
+            else
+                % BSG
+                P(r).update_action_prob_dist(t);
+                P(r).next_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
+                u_save(t, r, :, rep) = ACTION_SET(:, P(r).next_action_index(t));
+            end
             
         end
 
@@ -119,14 +130,19 @@ for rep = 1:num_rep
         v_tg = 0.25;
         for kk = 1:num_tg
             if kk == 1
-                tg_true(:, kk, t+1, rep) = tg_true(:,kk,t,rep) +  [(t - 50 < 0)*v_tg; 0;0] + ...
-                    [0; (t - 50 > 0)*(t - 100 < 0)*v_tg; 0] + [(t - 100 > 0)*(t - 150 < 0)*(-v_tg); 0; 0] + [0; (t - 150 > 0)*(t - 200 < 0)*(-v_tg); 0];
+                %tg_true(:, kk, t+1, rep) = tg_true(:,kk,t,rep) +  [(t - 50 < 0)*v_tg; 0;0] + ...
+                %   [0; (t - 50 > 0)*(t - 100 < 0)*v_tg; 0] + [(t - 100 > 0)*(t - 150 < 0)*(-v_tg); 0; 0] + [0; (t - 150 > 0)*(t - 200 < 0)*(-v_tg); 0];
+                T(1).move(t);
+                tg_true(:, kk, t+1, rep) = T(1).get_x(t+1)';
             elseif kk == 2
-                tg_true(:, kk, t+1, rep) = tg_true(:,kk,t,rep) +  [(t - 50 < 0)*(-v_tg); 0;0] + ...
-                    [0; (t - 50 > 0)*(t - 100 < 0)*v_tg; 0] + [(t - 100 > 0)*(t - 150 < 0)*(v_tg); 0; 0] + [0; (t - 150 > 0)*(t - 200 < 0)*(-v_tg); 0];
+                %tg_true(:, kk, t+1, rep) = tg_true(:,kk,t,rep) +  [(t - 50 < 0)*(-v_tg); 0;0] + ...
+                 %   [0; (t - 50 > 0)*(t - 100 < 0)*v_tg; 0] + [(t - 100 > 0)*(t - 150 < 0)*(v_tg); 0; 0] + [0; (t - 150 > 0)*(t - 200 < 0)*(-v_tg); 0];
+                T(2).move(t);
+                tg_true(:, kk, t+1, rep) = T(kk).get_x(t+1)';
             else
                 %tg_true(:,kk,t+1,rep) = A*tg_true(:,kk,t,rep)+[0.05;0;0] + [chol(W(:,:,kk,t,rep)).'*randn(2,1); 0]; % add Gaussian noise
             end
+            
         end
         
         % BSG: update experts after selecting actions
@@ -159,7 +175,7 @@ for rep = 1:num_rep
         end
         estm_tg = zeros(2, num_tg);
         estm_tg_cov = zeros(2, 2, num_tg);
-
+        detected = false(1, num_tg);
         % Compute variance
         for r = 1:num_robot
             msrmnt_rb = target_map(r);
@@ -175,6 +191,7 @@ for rep = 1:num_rep
                     estm_tg(:, target_id) = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
                     cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
                     estm_tg_cov(:, :, target_id) = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
+                    detected(target_id) = true;
                 else
                     % sensor fusion
                     estm_tg_old = estm_tg(:, target_id);
@@ -185,7 +202,7 @@ for rep = 1:num_rep
                     
                     info_matrix = inv(estm_tg_cov_old) + inv(squeeze(estm_tg_cov_new));
                     estm_tg_cov_fused = inv(info_matrix);
-                    estm_tg_fused = (estm_tg_cov_old\estm_tg_old + squeeze(estm_tg_cov_new)\estm_tg_new)\info_matrix;
+                    estm_tg_fused = info_matrix\(estm_tg_cov_old\estm_tg_old + squeeze(estm_tg_cov_new)\estm_tg_new);
                     
                     estm_tg(:, target_id) = estm_tg_fused;
                     estm_tg_cov(:, :, target_id) = estm_tg_cov_fused;
@@ -193,13 +210,21 @@ for rep = 1:num_rep
             end
         end
         
-        
+
         
         % Log covariance
-        tg_cov_save{t, rep} = estm_tg_cov;
-        tg_save{t, rep} = estm_tg;
-        
-        
+        tg_cov_save{t, rep} = estm_tg_cov(:,:,detected);
+        tg_save{t, rep} = estm_tg(:, detected);
+
+        % assign target with zeros obsevation with big covariance
+        %estm_tg_cov( :, :, ~detected) = inv_rb_cov([0;0;0], [map_size 3], zeros(3,3), cov_z);
+        %all_tg_cov = zeros(num_tg*2, num_tg*2);
+        for kk = 1:num_tg
+            if ~detected(kk)
+                estm_tg_cov( :, :, kk) = inv_rb_cov([0;0;0], [map_size 3], zeros(3,3), cov_z);
+            end
+            all_tg_cov(kk*2-1:kk*2, kk*2-1:kk*2, t, rep) = estm_tg_cov(:, :, kk);
+        end
         
             
             
@@ -229,7 +254,8 @@ for rep = 1:num_rep
             end
             tmp = tg_save{t, rep};
             if ~isempty(tmp)
-                h0.tg_cov = draw_covariances_nx(h0.tg_cov, tmp(:,1:2), tg_cov_save{t,rep},'m');
+                %tmp
+                h0.tg_cov = draw_covariances_nx(h0.tg_cov, tmp(1:2,:), tg_cov_save{t,rep},'m');
             end
 
             for kk = 1 : num_tg
@@ -248,5 +274,28 @@ for rep = 1:num_rep
     if viz && vid
         close(writerObj);
     end
+    for r = 1:num_robot
+        delete(R(r));
+        delete(P(r));
+        delete(G(r));
+    end
 end
+
 % Plot Measurement
+repToShow = 1;
+total_cost = zeros(run_len, num_rep);
+
+for rep = 1 : num_rep
+    for t = 1 : run_len
+        total_cost(t, rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
+    end
+end
+fnt_sz = 14;
+figure('Color',[1 1 1],'Position',[200 200 500 200]);
+plot(1:run_len,mean(total_cost, 2),'b-','linewidth',2);
+ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
+xlabel('Time Steps','FontSize',fnt_sz);
+set(gca,'fontsize',fnt_sz);
+xlim([0,run_len]);
+ylim([-5,5]);
+set(gca,'YTick',[-5 0 5 10]);

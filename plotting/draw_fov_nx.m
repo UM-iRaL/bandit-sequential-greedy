@@ -5,7 +5,7 @@ function h = draw_fov_nx(h,x,fov,range)
 % 
 %
 
-dx = 0.05;
+dx = 0.01;
 da = 0.05;
 a = -fov/2:da:fov/2;
 b = 0:dx:1;
