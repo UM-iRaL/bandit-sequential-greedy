@@ -5,8 +5,8 @@ classdef bsg_planner_nx_v1 < handle
         action_indices; 
         robot_idx;
         num_robot;
-
         next_action_index;
+        
         % BSG params
         J; % number of experts
         e;
@@ -47,15 +47,10 @@ classdef bsg_planner_nx_v1 < handle
             this.action_prob_dist = zeros(n_time_step, this.n_actions);
             this.loss = zeros(n_time_step, this.n_actions);
             this.loss_estm = zeros(n_time_step, this.n_actions);
-            
-            
+                        
             this.som.r_sense = r_sense;
             this.som.fov = fov;
             this.som.stdev_z = stdev_z;
-                        
-            this.tmm.A = @(x,u) dd_motion_model_jacobian_x(x,u,samp,true); % (3 x 3 x num_u x num_x)
-            this.tmm.W = 1/40*speye(3);%diag([0.035; 0.035; 0.014]); %diag([stdev_u(1); stdev_u(1); stdev_u(2)].^2);
-            this.tmm.chol_inv_W = chol(sparse(this.tmm.W)\speye(size(this.tmm.W)));
             
             this.smm.samp = samp;
             this.smm.f = @(x,u) dd_motion_model(x(1:3,:),u,this.smm.samp,true);
@@ -70,8 +65,8 @@ classdef bsg_planner_nx_v1 < handle
                     (this.action_prob_dist(t, this.next_action_index(t)) + this.gamma(j));
                 v = zeros(this.n_actions,1);
                 for i = 1 : this.n_actions
-                    v(i) = this.action_weight(t, j, i) * exp(-this.eta(j)*this.loss_estm(t, i));
-                    %v(i) = this.action_weight(t, j, i) * exp(this.eta(j)*(1-this.loss_estm(t, i)));
+                    v(i) = this.action_weight(t, j, i) * exp(-this.eta(j)*this.loss_estm(t, i));                    
+                        %v(i) = this.action_weight(t, j, i) * exp(this.eta(j)*(1-this.loss_estm(t, i)));
                 end
                 W_t = sum(v);
                 this.action_weight(t+1,j,:) = this.beta*W_t/this.n_actions + (1-this.beta)*v;
@@ -149,38 +144,35 @@ classdef bsg_planner_nx_v1 < handle
             loss = 1 - dimi_reward;
             this.loss(t, this.next_action_index(t)) = loss;
         end
-        
-        
-        
-        
-        % helper functions
-        function [min_y, min_y_cov, max_y, max_y_cov] = get_minmax_y(y,y_cov)
-            %   y = 2 x num_y = target states
-            %   y_cov = 2 x 2 x num_y = target covariances
-            
-            min_y = []; min_y_cov = inf;
-            max_y = []; max_y_cov = -inf;
-            
-            if( ~isempty(y) )
-                num_y = size(y,2);
-                for k = 1:num_y
-                    ld = logdet_nx(y_cov(:,:,k));
-                    if( ld < min_y_cov )
-                        min_y_cov = ld;
-                        min_id = k;
-                    end
-                    
-                    if( ld > max_y_cov )
-                        max_y_cov = ld;
-                        max_id = k;
-                    end
-                end
                 
-                min_y = y(:,min_id); min_y_cov = y_cov(:,:,min_id);
-                max_y = y(:,max_id); max_y_cov = y_cov(:,:,max_id);
-            end
-        end
-        function [att,att_cholimat] = get_attractor(this,x,x_cov,y,y_cov,exp_y_cl)
+        % helper functions
+%         function [min_y, min_y_cov, max_y, max_y_cov] = get_minmax_y(y,y_cov)
+%             %   y = 2 x num_y = target states
+%             %   y_cov = 2 x 2 x num_y = target covariances
+%             
+%             min_y = []; min_y_cov = inf;
+%             max_y = []; max_y_cov = -inf;
+%             
+%             if( ~isempty(y) )
+%                 num_y = size(y,2);
+%                 for k = 1:num_y
+%                     ld = logdet_nx(y_cov(:,:,k));
+%                     if( ld < min_y_cov )
+%                         min_y_cov = ld;
+%                         min_id = k;
+%                     end
+%                     
+%                     if( ld > max_y_cov )
+%                         max_y_cov = ld;
+%                         max_id = k;
+%                     end
+%                 end
+%                 
+%                 min_y = y(:,min_id); min_y_cov = y_cov(:,:,min_id);
+%                 max_y = y(:,max_id); max_y_cov = y_cov(:,:,max_id);
+%             end
+%         end
+%         function [att,att_cholimat] = get_attractor(this,x,x_cov,y,y_cov,exp_y_cl)
             % INPUT:
             %   x = 3 x 1 = sensor state
             %   x_cov = 3 x 3 = sensor covariance matrix

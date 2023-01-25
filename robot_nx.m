@@ -110,8 +110,7 @@ classdef robot_nx < handle
             if(abs(sum(u)) >= 0.1)
                 % add noise
                 u = u + [obj.stdev_v;obj.stdev_w].*randn(2,1);
-            end
-            
+            end            
             if( nargin < 3)
                 obj.x = dd_motion_model(obj.x,u,obj.T);
             else

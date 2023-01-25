@@ -10,7 +10,7 @@ rng(1,'philox');
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'greedy';
+planner_name = 'bsg';
 %planner_name = 'random';
 %planner_name = 'bsg';
 vid_name = strcat(strcat('video\single_target_', planner_name),'_test.mp4');
