@@ -71,12 +71,16 @@ classdef bsg_planner_nx_v1 < handle
                 v = zeros(this.n_actions,1);
                 for i = 1 : this.n_actions
                     v(i) = this.action_weight(t, j, i) * exp(-this.eta(j)*this.loss_estm(t, i));
+                    %v(i) = this.action_weight(t, j, i) * exp(this.eta(j)*(1-this.loss_estm(t, i)));
                 end
                 W_t = sum(v);
                 this.action_weight(t+1,j,:) = this.beta*W_t/this.n_actions + (1-this.beta)*v;
                     
                 this.expert_weight(t+1,j) = this.expert_weight(t, j)*...
                     exp(-this.e*this.loss_estm(t,:)*(reshape(this.action_weight(t, j,:), this.n_actions,[])/norm(squeeze(this.action_weight(t, j,:)),1)));
+                
+                %this.expert_weight(t+1,j) = this.expert_weight(t, j)*...
+                %   exp(this.e*(1-this.loss_estm(t,:))*(reshape(this.action_weight(t, j,:), this.n_actions,[])/norm(squeeze(this.action_weight(t, j,:)),1)));
             end
             % normalize weights by 1-Norm
             for j = 1:this.J
@@ -86,11 +90,8 @@ classdef bsg_planner_nx_v1 < handle
                 end
             end
             this.expert_weight(t+1,:) = this.expert_weight(t+1,:) / norm(squeeze(this.expert_weight(t+1,:)), 1);
-            
         end
-        
-
-        
+                
         function update_action_prob_dist(this, t)
 %             if t == 1
 %                 this.action_prob_dist(t, :) = 1/this.n_actions*ones(1, this.n_actions);
@@ -101,6 +102,9 @@ classdef bsg_planner_nx_v1 < handle
             this.action_prob_dist(t, :) = squeeze(q_t) * squeeze(p_t);  % 1 * n_actions
             if sum(isnan(this.action_prob_dist(t, :))) > 0
                 warning("nan value is not valid");
+            end
+            if abs(sum(this.action_prob_dist(t, :)) - 1) > 1e-4
+                error("incorrect prob distribution");
             end
         end
         
@@ -114,44 +118,13 @@ classdef bsg_planner_nx_v1 < handle
             % t: time t
             % x: robot positions
             % y: target positions
-            % fixed_u: control signals that has been determined by planner.
-            % fixed_x: 
             % Output:
-            % obj_tg: obj_tg(kk) contains kkth target of corresponding 
-            % sum -1/(r.^2)
+            % obj_mat: obj_mat(kk) contains kkth target of corresponding 
+            % sum -1/(r_i.^2) with r being the distance btw kkth target and
+            % ith robot that detects kkth target.
+            % 
+            % loss: 1 
             
-            % f(A_{i-1})
-
-            %{
-            num_tg = size(y,1);
-            obj_tg = zeros(num_tg, 1);
-            for r = 1 : robot_idx-1
-                % determine if targets are in the fov of robots 
-                % get range, sum 1/r.2 per target
-                cur_x = fixed_x{r};
-                for kk = 1 : num_tg
-                    cur_y = y(k, 1:2);
-                    range = norm(cur_x(1:2) - cur_y );
-                    bearing = bearing_nx(cur_x(1), cur_x(2),cur_y(1), cur_y(2));
-                    % check if kkth target is in the field of view of rth
-                    % robot.
-                    if range < this.som.r_sense && abs(restrict_angle(bearing-cur_x(3))) <= this.som.fov/2 
-                        obj_tg(kk) = obj_tg(kk) - 1 / (range.^2); 
-                    end
-                end
-            end
-
-            obj = 0;
-            map_size = 70;
-            for kk = 1:num_tg
-                if obj_tg(kk) == 0 % meaning this target has not been detected by one single robot
-                    % assume a number?
-                    obj_tg(kk) = -1/(2*map_size^2);
-                end
-                obj = obj + 1/obj_tg(kk);
-            end
-            %}
-
             % f(a_i | A_{i-1})
             cur_x = this.smm.f(x, u);
             obj_mat = prev_obj_mat;
@@ -166,27 +139,15 @@ classdef bsg_planner_nx_v1 < handle
             end
 
             cur_reward = reward_function(obj_mat);
-
-            prev_reward = 1 - prev_loss;
+            %prev_reward = 1 - prev_loss;
+            prev_reward = reward_function(prev_obj_mat);
             dimi_reward = cur_reward - prev_reward;
+            % sanity check
+            if dimi_reward < 0 || dimi_reward > 1
+                error('marginal gain can not be negative or larger than 1');
+            end
             loss = 1 - dimi_reward;
             this.loss(t, this.next_action_index(t)) = loss;
-            
-            % obj is all you want
-            
-            
-            
-            
-            %{
-            this.ncov(t, :) = ncov - max(ncov);
-            
-            this.loss(t, :) = this.ncov(t, :)/max(abs(this.ncov(t, :)));    % in [-1, 0], -1 with biggest weight.
-            g=sprintf('%2f ', this.loss(t,:));
-            sprintf('loss vector of robot %i is %s \n', robot_idx, g)
-            if sum(isnan(this.loss(t, :))) > 0
-                warning("nan value is not valid");
-            end
-            %}
         end
         
         
