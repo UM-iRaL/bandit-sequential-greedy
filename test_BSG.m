@@ -52,7 +52,7 @@ for rep = 1:num_rep
     % Create Robots and Planners
     for r = 1:num_robot
         R(r) = robot_nx(x_true(1, r, :, rep));
-        P(r) = bsg_planner_nx_v2(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
+        P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
     end
     
