@@ -14,9 +14,7 @@ classdef target_v1 < handle
     methods
         function this = target_v1(initial_v,x,n_time_step, type)
             % Initialization
-            % x->1 x 3 (x, y, id)
-            
-            
+            % x->1 x 3 (x, y, id)                        
             this.v = initial_v;
             this.initial_v = initial_v;
             this.x = zeros(n_time_step+1, 3);
@@ -44,7 +42,7 @@ classdef target_v1 < handle
             dist_vec = cur_x - pos_r(1:2, :);
             [min_dist_sqr, min_idx] = min(dist_vec(1, :).^2 + dist_vec(2, :).^2);
             min_dist = sqrt(min_dist_sqr);
-            if min_dist < 15
+            if min_dist < 0
                 this.state = 'escape';
                 this.v = this.initial_v * 2;
             else

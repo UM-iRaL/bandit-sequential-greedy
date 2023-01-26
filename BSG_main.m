@@ -2,8 +2,8 @@ clear all;
 close all;
 % Experiment parameters
 num_rep = 1;
-run_len = 1000;
-num_robot = 1;
+run_len = 1500;
+num_robot = 3;
 num_tg = 1;
 map_size = 150;
 rng(1,'philox');
@@ -13,7 +13,7 @@ viz = true;
 planner_name = 'bsg';
 %planner_name = 'random';
 %planner_name = 'bsg';
-vid_name = strcat(strcat('video\single_target_', planner_name),'_test.mp4');
+vid_name = strcat(strcat('video\dd_single_target_random_order_', planner_name),'_test.mp4');
 mode = 'experiment';
 %mode = 'experiment';
 if strcmp(mode, 'analysis')
@@ -21,15 +21,17 @@ if strcmp(mode, 'analysis')
 end
 
 % Action set for robots
-[V,W] = meshgrid([1],[0, -1, 1, -2, 2]);
-ACTION_SET = transpose([V(:), W(:)]);
+%[V,W] = meshgrid([1],[0, -1, 1, -2, 2]);
+%ACTION_SET = transpose([V(:), W(:)]);
+[Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
+ACTION_SET = transpose([Vx(:), Vy(:)]);
 % Visibility map
 vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'logical');
 %vis_map.map = ~vis_map.map;
 vis_map_save = cell(run_len,num_rep);
 
 % Initial pose for robots
-x_true = zeros(run_len+1, num_robot+3,3,num_rep); % robots
+x_true = zeros(run_len+1, num_robot+2,3,num_rep); % robots
 x_true(1, 1, :, :) = repmat([-30;-30;0],1,num_rep);
 x_true(1, 2, :, :) = repmat([30; 30; pi/4],1,num_rep);
 x_true(1, 3, :, :) = repmat([-30; 0; pi/4],1,num_rep);
@@ -39,7 +41,7 @@ tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
 tg_true(:,1,1,:) = repmat([120;0;1],1,num_rep);
 %tg_true(:,2,1,:) = repmat([40;40;2],1,num_rep);
-%tg_true(:,3,1,:) = repmat([60;-60;3],1,num_rep);
+%tg_true(:,3,1,:) = repmat([-60;0;3],1,num_rep);
 
 % Measurement History Data
 z_d_save = cell(run_len,num_robot,num_rep); % target measurements(range-bearing)
@@ -159,8 +161,11 @@ for rep = 1:num_rep
         % BSG: update experts after selecting actions
         prev_loss = 1;
         prev_obj_mat = zeros(num_tg, 1);
-        for r = 1:num_robot
-            R(r).move(squeeze(u_save(t, r, :, rep)));
+        r_v = 1:num_robot;
+        itr_rank = r_v(randperm(length(r_v)));
+
+        for r = itr_rank
+            R(r).move(squeeze(u_save(t, r, :, rep)))%, point_mass_motion_model);
             x_true(t+1,r,:,rep) = R(r).get_x();
             % f(a_i|A_{i-1})
             [loss, obj_mat] = P(r).losses_after_action(t, r, squeeze(x_true(t,r,:,rep)), tg_true(:,:, t+1, rep)', squeeze(u_save(t, r, :, rep)), prev_loss, prev_obj_mat);
