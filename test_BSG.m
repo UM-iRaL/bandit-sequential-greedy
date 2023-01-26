@@ -2,7 +2,7 @@ clear all;
 close;
 % Experiment parameters
 num_rep = 1;
-run_len = 10;
+run_len = 1000;
 num_robot = 3;
 num_tg = 2;
 map_size = 100;
@@ -289,11 +289,6 @@ for rep = 1:num_rep
     end
     if viz && vid
         close(writerObj);
-    end
-    for r = 1:num_robot
-        delete(R(r));
-        delete(P(r));
-        delete(G(r));
     end
 end
 

@@ -1,7 +1,6 @@
 function obj_sum = objective_function(robot_states, target_states)%, G, robot_indices)
 % param robot_states: 3 x num_rob
 % param target_states: 2 x num_tar
-% param robot_indices: vector of evaluated robots' indices
 % return obj: objective function
 
     num_tar = size(target_states, 2);
