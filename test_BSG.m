@@ -2,7 +2,7 @@ clear all;
 close;
 % Experiment parameters
 num_rep = 1;
-run_len = 1000;
+run_len = 10;
 num_robot = 3;
 num_tg = 2;
 map_size = 100;
@@ -44,23 +44,16 @@ all_tg_cov = zeros(2*num_tg, 2*num_tg, run_len, num_rep);
 vid = false;
 viz = true;
 vid_name = 'video\fancy_traj.avi';
-planner_name = 'greedy';
-% planner_name = 'bsg';
+% planner_name = 'greedy';
+planner_name = 'bsg';
 
 for rep = 1:num_rep
-    % Setting
 
     % Create Robots and Planners
-    %R = struct(robot_nx);
-    %P = struct([]);
-    %G = struct([]);
     for r = 1:num_robot
         R(r) = robot_nx(x_true(1, r, :, rep));
-        P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
+        P(r) = bsg_planner_nx_v2(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
-
-        G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
-            R(r).fov);
     end
     
     T(1) = target_v1(2, tg_true(:,1,1,rep), run_len, 'circle');
@@ -96,6 +89,12 @@ for rep = 1:num_rep
         end
     end
 
+    % TODO: put this in the for loop and use x_true
+    prev_robot_states = [];
+    for r = 1:num_robot
+        prev_robot_states = [prev_robot_states R(r).get_x()];
+    end
+
     % Sense -> Plan Moves -> Move Targets -> Move Robots -> Log
     % Measurements -> Compute Loss
     for t = 1:run_len
@@ -107,27 +106,20 @@ for rep = 1:num_rep
 
         fixed_x0 = cell(num_robot,1); fixed_u = cell(num_robot,1);
 
+        % Greedy & BSG: Compute objective function at t 
+        %         after knowing targets' positions at t
+        obj_greedy = objective_function(prev_robot_states, tg_true(:,:, t, rep)');
+
         % Plan Moves
         % both BSG and Greedy only know targets' positions at t
 
         % prev_loss = 1;
         % prev_obj_mat = zeros(num_tg, 1);
 
-        prev_robot_states = zeros(3, 0)
+        prev_robot_states = zeros(3, 0);
         for r = 1:num_robot
             
             if strcmp(planner_name, 'greedy')
-%                 % Greedy: planning + moving
-%                 [next_action_idx, next_state] = G(r).greedy_action(t, squeeze(x_true(t, r, :, rep)), tg_true(:, :, t, rep)', prev_robot_states);
-% 
-%                 % move robot
-%                 R(r).set_x(next_state);
-%                 x_true(t+1,r,:,rep) = R(r).get_x();
-% 
-%                 % prepare for planning for next robot
-%                 prev_robot_states = [prev_robot_states next_state];
-% 
-%                 u_save(t, r, :, rep) = ACTION_SET(:, next_action_idx);
             else
                 % BSG
                 P(r).update_action_prob_dist(t);
@@ -157,26 +149,34 @@ for rep = 1:num_rep
         end
         
         % BSG: update experts after selecting actions
-        prev_loss = 1;
-        prev_obj_mat = zeros(num_tg, 1);
+
+        prev_robot_states = zeros(3, 0);
+
         for r = 1:num_robot
+
+            % previous objective function 
+            prev_obj_BSG = objective_function(prev_robot_states, tg_true(:,:, t, rep)');
+
+            % this robot moves
             R(r).move(squeeze(u_save(t, r, :, rep)));
             x_true(t+1,r,:,rep) = R(r).get_x();
-            % fixed_x0{r} = x_true(t+1,r,:,rep);
-            % f(a_i|A_{i-1})
+            prev_robot_states = [prev_robot_states R(r).get_x()];
 
-            % P(r).loss_after_action
-            [loss, obj_mat] = P(r).losses_after_action(t, r, squeeze(x_true(t,r,:,rep)), tg_true(:,:, t+1, rep)', squeeze(u_save(t, r, :, rep)), prev_loss, prev_obj_mat);
-            prev_obj_mat = obj_mat;
-            prev_loss = loss;
+            % current objective function 
+            curr_obj_BSG = objective_function(prev_robot_states, tg_true(:,:, t, rep)');
+
+            % compute normalized reward, then loss
+            reward = (curr_obj_BSG - prev_obj_BSG) / (0 - prev_obj_BSG); 
+            if reward < 0 || reward > 1
+                error("wrong reward");
+            end
+            loss = 1 - reward; 
+            P(r).loss(t, P(r).next_action_index(t)) = loss;
+
+            % update experts
             P(r).update_experts(t);
         end
 
-        % Greedy: compute objective function value at t+1 
-        %         after knowing targets' positions at t+1
-        obj_greedy = objective_function(prev_robot_states, tg_true(:,:, t+1, rep)');
-        
-        
         % Log Mearsurement
             % 1. Maintain a map from robots to detected targets
             % 2. Compute covariance based on map
