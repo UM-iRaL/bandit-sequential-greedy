@@ -9,7 +9,7 @@ classdef robot_nx < handle
         stdev_w = 0;
         
         % Sensor 
-        fov = deg2rad(94); %deg2rad(94);     % deg2rad(124);
+        fov = deg2rad(45); %deg2rad(94);     % deg2rad(124);
         r_sense = 290;          % meter
         
         % Detection model
@@ -106,14 +106,10 @@ classdef robot_nx < handle
             x = obj.x;
         end
         
-        function move(obj,u,smm)
-            if(abs(sum(u)) >= 0.1)
-                % add noise
-                u = u + [obj.stdev_v;obj.stdev_w].*randn(2,1);
-            end
-            
+        function move(obj,u,smm)            
             if( nargin < 3)
-                obj.x = dd_motion_model(obj.x,u,obj.T);
+                %obj.x = dd_motion_model(obj.x,u,obj.T);
+                obj.x = point_mass_motion_model(obj.x, u, obj.T);
             else
                 obj.x = smm(obj.x,u,obj.params);
             end

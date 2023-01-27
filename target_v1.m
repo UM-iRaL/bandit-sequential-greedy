@@ -51,7 +51,7 @@ classdef target_v1 < handle
             end
             if strcmp(this.state, 'regular')
                 if strcmp(this.type,'circle')
-                    ang_v = 12*pi/this.n_time_step;
+                    ang_v = 2*pi/this.n_time_step;
                     this.x(t+1, 1) = this.x(t, 1) - this.v * sin(ang_v*t); %do notihing.
                     this.x(t+1, 2) = this.x(t, 2) + this.v * cos(ang_v*t);
                 elseif strcmp(this.type, 'rect')

@@ -241,22 +241,13 @@ for rep = 1:num_rep
             end
             all_tg_cov(kk*2-1:kk*2, kk*2-1:kk*2, t, rep) = estm_tg_cov(:, :, kk);
         end
-        
-            
-            
+                                
         % Receive Loss -> Update Loss
             % 1. Compute objective function
             % 2. Compute loss
             % 3. Pass loss to bsg_planner()
         
             % using target at time t+1 to calculate loss function
-        
-        
-            
-            
-            
-            
-            
             
         % Visualization
         if viz

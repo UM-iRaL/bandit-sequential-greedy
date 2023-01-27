@@ -16,7 +16,7 @@ classdef greedy_planner_v2 < handle
             this.num_robot = num_robot;
             
             this.smm.samp = samp;
-            this.smm.f = @(x,u) dd_motion_model(x(1:3,:),u,this.smm.samp,true);
+            this.smm.f = @(x,u) point_mass_motion_model(x(1:3,:),u,this.smm.samp);
 
             this.som.r_sense = r_sense;
             this.som.fov = fov;
