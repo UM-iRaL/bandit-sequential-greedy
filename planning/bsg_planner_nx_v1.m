@@ -33,7 +33,7 @@ classdef bsg_planner_nx_v1 < handle
             this.n_actions = length(actions);
             this.action_indices = 1:this.n_actions;
             this.next_action_index = ones(n_time_step, 1);
-            learning_const = 8;
+            learning_const = 1;
             this.J = ceil(log(n_time_step));
             this.e = learning_const*sqrt(log(this.J) / 2 / n_time_step);
             this.beta = 1 / (n_time_step - 1);

@@ -2,22 +2,24 @@ clear all;
 close all;
 % Experiment parameters
 num_rep = 1;
-run_len = 1500;
-num_robot = 3;
-num_tg = 1;
+run_len = 1000;
+num_robot = 4;
+num_tg = 4;
 map_size = 150;
 rng(1,'philox');
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'bsg';
-%planner_name = 'random';
 %planner_name = 'bsg';
+planner_name = 'greedy';
+% planner_name = 'bsg';
 vid_name = strcat(strcat('video\dd_single_target_random_order_', planner_name),'_test.mp4');
+% mode = 'analysis';
 mode = 'experiment';
-%mode = 'experiment';
 if strcmp(mode, 'analysis')
-   num_rep = num_rep*3;
+    num_rep = num_rep*3;
+    vid = false;
+    viz = false;
 end
 
 % Action set for robots
@@ -25,6 +27,8 @@ end
 %ACTION_SET = transpose([V(:), W(:)]);
 [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
 ACTION_SET = transpose([Vx(:), Vy(:)]);
+ACTION_SET = normalize(ACTION_SET, 1, "norm");
+ACTION_SET(isnan(ACTION_SET)) = 0;
 % Visibility map
 vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'logical');
 %vis_map.map = ~vis_map.map;
@@ -32,16 +36,18 @@ vis_map_save = cell(run_len,num_rep);
 
 % Initial pose for robots
 x_true = zeros(run_len+1, num_robot+2,3,num_rep); % robots
-x_true(1, 1, :, :) = repmat([-30;-30;0],1,num_rep);
-x_true(1, 2, :, :) = repmat([30; 30; pi/4],1,num_rep);
-x_true(1, 3, :, :) = repmat([-30; 0; pi/4],1,num_rep);
+x_true(1, 1, :, :) = repmat([30;0;0],1,num_rep);
+x_true(1, 2, :, :) = repmat([0; 30; pi/2],1,num_rep);
+x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
+x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([120;0;1],1,num_rep);
-%tg_true(:,2,1,:) = repmat([40;40;2],1,num_rep);
-%tg_true(:,3,1,:) = repmat([-60;0;3],1,num_rep);
+tg_true(:,1,1,:) = repmat([80;0;1],1,num_rep);
+tg_true(:,2,1,:) = repmat([0;80;2],1,num_rep);
+tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
+tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
 
 % Measurement History Data
 z_d_save = cell(run_len,num_robot,num_rep); % target measurements(range-bearing)
@@ -73,9 +79,10 @@ for rep = 1:num_rep
     end
 
     % Create Targets.
-    T(1) = target_v1(0.5, tg_true(:,1,1,rep), run_len, 'circle');
-    %T(2) = target_v1(0.5, tg_true(:,2,1,rep), run_len, 'rect');
-    %T(3) = target_v1(0.5, tg_true(:,3,1,rep), run_len, 'random');
+    T(1) = target_v1(1, 0.5, tg_true(:,1,1,rep), run_len, 'circle');
+    T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
+    T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
+    T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
         figure('Color',[1 1 1],'Position',[100,277,1200,800]);
