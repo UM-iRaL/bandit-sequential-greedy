@@ -1,10 +1,9 @@
 clear all;
-close all;
 % Experiment parameters
 num_rep = 1;
 run_len = 1000;
-num_robot = 2;
-num_tg = 2;
+num_robot = 4;
+num_tg = 1;
 map_size = 100;
 
 rng(1,'philox');
@@ -24,16 +23,16 @@ vis_map_save = cell(run_len,num_rep);
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
 x_true(1, 1, :, :) = repmat([30;0;0],1,num_rep);
 x_true(1, 2, :, :) = repmat([0; 30; pi/2],1,num_rep);
-%x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
-%x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
+x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
+x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
 tg_true(:,1,1,:) = repmat([80;0;1],1,num_rep);
-tg_true(:,2,1,:) = repmat([0;80;2],1,num_rep);
-%tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
-%tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
+% tg_true(:,2,1,:) = repmat([0;80;2],1,num_rep);
+% tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
+% tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
 
 
 % Measurement History Data
@@ -66,9 +65,9 @@ for rep = 1:num_rep
     end
     
     T(1) = target_v1(1, 0.25, tg_true(:,1,1,rep), run_len, 'circle');
-    T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
-    %T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'circle');
-    %T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'circle');
+%     T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
+%     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
+%     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
         figure('Color',[1 1 1],'Position',[100,277,1200,800]);
@@ -100,31 +99,85 @@ for rep = 1:num_rep
         end
     end
 
-    % Sense -> Plan Moves -> Move Targets -> Move Robots -> Log
-    % Measurements -> Compute Loss
+    % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
         % Sense
         for r = 1:num_robot
             % targets
             z_d_save{t, r, rep} = R(r).sense(tg_true(:, :, t, rep)');
         end
+        
+        % Log Mearsurement
+        % Key is robot id, Value is a collection of target ids
+        target_map = containers.Map('KeyType','double','ValueType','any'); 
+        for r = 1:num_robot
+            Z_d = z_d_save{t, r, rep};
+            target_map(r) = Z_d;
+        end
+        estm_tg = zeros(2, num_tg);
+        estm_tg_cov = zeros(2, 2, num_tg);
+        detected = false(1, num_tg);
+        % Compute variance
+        for r = 1:num_robot
+            msrmnt_rb = target_map(r);
+            if size(msrmnt_rb, 1) == 0
+                continue;
+            end
+            for k = 1 : size(msrmnt_rb, 1)
+                % third column labels classes of targets.
+                target_id = msrmnt_rb(k, end);
+
+                if(estm_tg_cov(:,:,target_id) == zeros(2,2)) 
+                    % first measurement
+                    estm_tg(:, target_id) = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
+                    cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
+                    estm_tg_cov(:, :, target_id) = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
+                    detected(target_id) = true;
+                else
+                    % sensor fusion
+                    estm_tg_old = estm_tg(:, target_id);
+                    estm_tg_cov_old = estm_tg_cov(:,:,target_id);
+                    estm_tg_new = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
+                    cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
+                    estm_tg_cov_new = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
+                    
+                    info_matrix = inv(estm_tg_cov_old) + inv(squeeze(estm_tg_cov_new));
+                    estm_tg_cov_fused = inv(info_matrix);
+                    estm_tg_fused = info_matrix\(estm_tg_cov_old\estm_tg_old + squeeze(estm_tg_cov_new)\estm_tg_new);
+                    
+                    estm_tg(:, target_id) = estm_tg_fused;
+                    estm_tg_cov(:, :, target_id) = estm_tg_cov_fused;
+                end
+            end
+        end
+              
+        % Log covariance
+        tg_cov_save{t, rep} = estm_tg_cov(:,:,detected);
+        tg_save{t, rep} = estm_tg(:, detected);
+
+        % assign target with zeros obsevation with big covariance
+
+        for kk = 1:num_tg
+            if ~detected(kk)
+                estm_tg_cov( :, :, kk) = inv_rb_cov([0;0;0], [map_size*2*sqrt(2) 3], zeros(3,3), cov_z);
+            end
+            all_tg_cov(kk*2-1:kk*2, kk*2-1:kk*2, t, rep) = estm_tg_cov(:, :, kk);
+        end
+
 
         % At every time step t, first compute objective function using the robots'
         % positions at t (planned at t-1) and the environment at t
+        % only detected targets can be considered.
         if strcmp(planner_name, 'greedy')
-            obj_greedy(t, rep) = objective_function(squeeze(x_true(t, :, :, rep))', tg_true(1:2,:, t, rep), R(1).r_sense, R(1).fov);
+            obj_greedy(t, rep) = objective_function(squeeze(x_true(t, :, :, rep))', tg_true(1:2,detected, t, rep), R(1).r_sense, R(1).fov);
         end
-        % Plan Moves
+        % Plan Moves -> compute u_save(t, r, :, rep)
         % both BSG and Greedy only know targets' positions at t
-
-        % prev_loss = 1;
-        % prev_obj_mat = zeros(num_tg, 1);
-
         prev_robot_states = zeros(3, 0);
         for r = 1:num_robot
             if strcmp(planner_name, 'greedy')
                 % Greedy: planning + moving
-                [next_action_idx, next_state] = G(r).greedy_action(t, squeeze(x_true(t, r, :, rep)), tg_true(1:2, :, t, rep), prev_robot_states, R(r).r_sense, R(r).fov);
+                [next_action_idx, next_state] = G(r).greedy_action(t, squeeze(x_true(t, r, :, rep)), tg_true(1:2, detected, t, rep), prev_robot_states, R(r).r_sense, R(r).fov);
 
                 % move robot
                 R(r).set_x(next_state);
@@ -176,73 +229,7 @@ for rep = 1:num_rep
                 P(r).update_experts(t);
             end
         end
-        
-        % Log Mearsurement
-        % Key is robot id, Value is a collection of target ids
-        target_map = containers.Map('KeyType','double','ValueType','any'); 
-        for r = 1:num_robot
-            Z_d = z_d_save{t, r, rep};
-            target_map(r) = Z_d;
-        end
-        estm_tg = zeros(2, num_tg);
-        estm_tg_cov = zeros(2, 2, num_tg);
-        detected = false(1, num_tg);
-        % Compute variance
-        for r = 1:num_robot
-            msrmnt_rb = target_map(r);
-            if size(msrmnt_rb, 1) == 0
-                continue;
-            end
-            for k = 1 : size(msrmnt_rb, 1)
-                % third column labels classes of targets.
-                target_id = msrmnt_rb(k, end);
-
-                if(estm_tg_cov(:,:,target_id) == zeros(2,2)) 
-                    % first measurement
-                    estm_tg(:, target_id) = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
-                    cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
-                    estm_tg_cov(:, :, target_id) = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
-                    detected(target_id) = true;
-                else
-                    % sensor fusion
-                    estm_tg_old = estm_tg(:, target_id);
-                    estm_tg_cov_old = estm_tg_cov(:,:,target_id);
-                    estm_tg_new = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
-                    cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
-                    estm_tg_cov_new = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
-                    
-                    info_matrix = inv(estm_tg_cov_old) + inv(squeeze(estm_tg_cov_new));
-                    estm_tg_cov_fused = inv(info_matrix);
-                    estm_tg_fused = info_matrix\(estm_tg_cov_old\estm_tg_old + squeeze(estm_tg_cov_new)\estm_tg_new);
-                    
-                    estm_tg(:, target_id) = estm_tg_fused;
-                    estm_tg_cov(:, :, target_id) = estm_tg_cov_fused;
-                end
-            end
-        end
-        
-
-        
-        % Log covariance
-        tg_cov_save{t, rep} = estm_tg_cov(:,:,detected);
-        tg_save{t, rep} = estm_tg(:, detected);
-
-        % assign target with zeros obsevation with big covariance
-
-        for kk = 1:num_tg
-            if ~detected(kk)
-                estm_tg_cov( :, :, kk) = inv_rb_cov([0;0;0], [map_size 3], zeros(3,3), cov_z);
-            end
-            all_tg_cov(kk*2-1:kk*2, kk*2-1:kk*2, t, rep) = estm_tg_cov(:, :, kk);
-        end
-                                
-        % Receive Loss -> Update Loss
-            % 1. Compute objective function
-            % 2. Compute loss
-            % 3. Pass loss to bsg_planner()
-        
-            % using target at time t+1 to calculate loss function
-            
+       
         % Visualization
         if viz
             set(h0.viz,'cdata',vis_map.map.');
@@ -297,5 +284,6 @@ ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
 xlabel('Time Steps','FontSize',fnt_sz);
 set(gca,'fontsize',fnt_sz);
 xlim([0,run_len]);
-ylim([-5,5]);
-set(gca,'YTick',[-5 0 5 10]);
+ylim([-5,15]);
+set(gca,'YTick',[-5 0 5 10 15]);
+title(planner_name);

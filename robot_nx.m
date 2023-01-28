@@ -10,7 +10,7 @@ classdef robot_nx < handle
         
         % Sensor 
         fov = deg2rad(45); %deg2rad(94);     % deg2rad(124);
-        r_sense = 290;          % meter
+        r_sense = 300;          % meter
         
         % Detection model
         %p0 = [0.9474; 0.8797; 0.9173; 1.0000; 0.8872];

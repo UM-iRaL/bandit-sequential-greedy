@@ -5,7 +5,7 @@ function obj_sum = objective_function(robot_states, target_states, r_sense, fov)
 
     num_tar = size(target_states, 2);
     num_rob = size(robot_states, 2);
-    map_size = 200;
+    map_size = 300;
     obj = (-1 / map_size^2) * ones(num_tar, 1);
 
     if num_rob ~= 0
