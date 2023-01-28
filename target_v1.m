@@ -9,12 +9,14 @@ classdef target_v1 < handle
         type;
         n_time_step;
         state;
+        target_id;
     end
 
     methods
-        function this = target_v1(initial_v,x,n_time_step, type)
+        function this = target_v1(target_id,initial_v,x,n_time_step, type)
             % Initialization
-            % x->1 x 3 (x, y, id)                        
+            % x->1 x 3 (x, y, id)   
+            this.target_id = target_id;
             this.v = initial_v;
             this.initial_v = initial_v;
             this.x = zeros(n_time_step+1, 3);
@@ -23,17 +25,6 @@ classdef target_v1 < handle
             this.x(:, 3) = x(3);
             this.type = type;
             this.n_time_step = n_time_step;
-%             if strcmp(this.type,'circle')
-%                 ang_v = 12*pi/n_time_step;
-%                 radius = this.v / ang_v;                
-%                 origin = zeros(1, 2);
-%                 origin(1) = this.x(1, 1) - radius;
-%                 origin(2) = this.x(1, 2);
-%                 for t = 1:this.n_time_step
-%                     this.x(t, 1) = origin(1) + radius*cos(ang_v*t);
-%                     this.x(t, 2) = origin(2) + radius*sin(ang_v*t);
-%                 end
-%             end
             this.state = 'regular';
         end
 
@@ -42,6 +33,7 @@ classdef target_v1 < handle
             dist_vec = cur_x - pos_r(1:2, :);
             [min_dist_sqr, min_idx] = min(dist_vec(1, :).^2 + dist_vec(2, :).^2);
             min_dist = sqrt(min_dist_sqr);
+            % if robots are within certain range, enter escape mode.
             if min_dist < 0
                 this.state = 'escape';
                 this.v = this.initial_v * 2;
@@ -51,9 +43,10 @@ classdef target_v1 < handle
             end
             if strcmp(this.state, 'regular')
                 if strcmp(this.type,'circle')
-                    ang_v = 2*pi/this.n_time_step;
-                    this.x(t+1, 1) = this.x(t, 1) - this.v * sin(ang_v*t); %do notihing.
-                    this.x(t+1, 2) = this.x(t, 2) + this.v * cos(ang_v*t);
+                    ang_v = this.v/80;
+                    gamma = pi/2 * (this.target_id-1);
+                    this.x(t+1, 1) = this.x(t, 1) - this.v * sin(gamma + ang_v*t); %do notihing.
+                    this.x(t+1, 2) = this.x(t, 2) + this.v * cos(gamma + ang_v*t);
                 elseif strcmp(this.type, 'rect')
                     rep = 10;
                     one_rep_time = this.n_time_step / rep;
@@ -81,6 +74,7 @@ classdef target_v1 < handle
                     error('unseen type.')
                 end
             else 
+                % escape mode, double speed and escape.
                 escape_dir = dist_vec(:, min_idx) / min_dist;
                 this.x(t+1, 1:2) = (this.x(t, 1:2)' + escape_dir * this.v)';
             end

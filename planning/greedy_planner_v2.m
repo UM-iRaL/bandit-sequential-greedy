@@ -22,7 +22,7 @@ classdef greedy_planner_v2 < handle
             this.som.fov = fov;
         end
     
-        function [greedy_action_idx, greedy_next_state] = greedy_action(this, t, x, y, prev_robot_states)
+        function [greedy_action_idx, greedy_next_state] = greedy_action(this, t, x, y, prev_robot_states, r_sense, fov)
             % this function selects the next action using Greedy
             % x: this robot's state, 3 x 1
             % y: all targets' states, 2 x num_tg
@@ -37,7 +37,7 @@ classdef greedy_planner_v2 < handle
             for i = 1 : n_x
                 temp_x = future_x(:, i);
                 temp_robot_states = [prev_robot_states temp_x];
-                temp_obj(i) = objective_function(temp_robot_states, y);
+                temp_obj(i) = objective_function(temp_robot_states, y, r_sense, fov);
             end
             [max_obj, greedy_action_idx] = max(temp_obj);
             if sum(temp_obj == max_obj) > 1

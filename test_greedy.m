@@ -110,8 +110,6 @@ for rep = 1:num_rep
             z_d_save{t, r, rep} = R(r).sense(tg_true(:, :, t, rep)');
         end
 
-        fixed_x0 = cell(num_robot,1); fixed_u = cell(num_robot,1);
-
         % At every time step t, first compute objective function using the robots'
         % positions at t (planned at t-1) and the environment at t
         
@@ -139,22 +137,9 @@ for rep = 1:num_rep
         end
 
         % Move Targets and get targets' positions at t+1
-        v_tg = 0.25;
         for kk = 1:num_tg
-            if kk == 1
-                %tg_true(:, kk, t+1, rep) = tg_true(:,kk,t,rep) +  [(t - 50 < 0)*v_tg; 0;0] + ...
-                %   [0; (t - 50 > 0)*(t - 100 < 0)*v_tg; 0] + [(t - 100 > 0)*(t - 150 < 0)*(-v_tg); 0; 0] + [0; (t - 150 > 0)*(t - 200 < 0)*(-v_tg); 0];
-                T(1).move(t, squeeze(x_true(t, :, :, rep)));
-                tg_true(:, kk, t+1, rep) = T(1).get_x(t+1)';
-            elseif kk == 2
-                %tg_true(:, kk, t+1, rep) = tg_true(:,kk,t,rep) +  [(t - 50 < 0)*(-v_tg); 0;0] + ...
-                 %   [0; (t - 50 > 0)*(t - 100 < 0)*v_tg; 0] + [(t - 100 > 0)*(t - 150 < 0)*(v_tg); 0; 0] + [0; (t - 150 > 0)*(t - 200 < 0)*(-v_tg); 0];
-                T(2).move(t, squeeze(x_true(t, :, :, rep)));
-                tg_true(:, kk, t+1, rep) = T(kk).get_x(t+1)';
-            else
-                %tg_true(:,kk,t+1,rep) = A*tg_true(:,kk,t,rep)+[0.05;0;0] + [chol(W(:,:,kk,t,rep)).'*randn(2,1); 0]; % add Gaussian noise
-            end
-            
+            T(kk).move(t, squeeze(x_true(t, :, :, rep)));
+            tg_true(:, kk, t+1, rep) = T(kk).get_x(t+1)';            
         end        
         
         % Key is robot id, Value is a collection of target ids
