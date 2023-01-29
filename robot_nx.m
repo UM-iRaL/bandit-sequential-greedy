@@ -19,7 +19,7 @@ classdef robot_nx < handle
         m0 = 3*ones(5,1);
         
         % Bearing Model
-        b_sigma = deg2rad(0.001);
+        b_sigma = deg2rad(0.1);
         % To stop bearing noise let b_sigma = 0;
         
         % Range Model

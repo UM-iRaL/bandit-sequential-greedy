@@ -1,4 +1,5 @@
 clear all;
+close all;
 % Experiment parameters
 num_rep = 1;
 run_len = 1000;
@@ -9,10 +10,12 @@ map_size = 100;
 rng(1,'philox');
 
 % Action set for robots
-[Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
-ACTION_SET = transpose([Vx(:), Vy(:)]);
-ACTION_SET = normalize(ACTION_SET, 1, "norm");
-ACTION_SET(isnan(ACTION_SET)) = 0;
+% [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
+% ACTION_SET = transpose([Vx(:), Vy(:)]);
+% ACTION_SET = normalize(ACTION_SET, 1, "norm");
+% ACTION_SET(isnan(ACTION_SET)) = 0;
+directions = [0:3] * pi/2;
+ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
 vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'logical');
@@ -105,9 +108,47 @@ for rep = 1:num_rep
         % Move Targets and get targets' positions at t
         for kk = 1:num_tg
             T(kk).move(t, squeeze(x_true(t, :, :, rep)));
-            tg_true(:, kk, t, rep) = T(kk).get_x(t)';
+            tg_true(:, kk, t+1, rep) = T(kk).get_x(t+1)';
         end
+        % Plan Moves -> compute u_save(t, r, :, rep)
+        % both BSG and Greedy only know targets' positions at t
+        prev_robot_states = zeros(3, 0);
+        for r = 1:num_robot
+            if strcmp(planner_name, 'greedy')
+                if t > 1
+                    % Greedy: select actions based on targets' positions at t-1,
+                    % so for Greedy, targets should move to positions at t
+                    % after Greedy selects actions
+                    % TODO: for Greedy, we need to let targets move after Greedy selects actions
+                    [next_action_idx, next_state] = G(r).greedy_action(t, squeeze(x_true(t-1, r, :, rep)), tg_save{t-1, rep}, prev_robot_states, R(r).r_sense, R(r).fov);
 
+                    % move robot
+%                     R(r).set_x(next_state);
+%                     x_true(t,r,:,rep) = next_state;
+
+                    % prepare for planning for next robot
+                    prev_robot_states = [prev_robot_states next_state];
+
+                    u_save(t, r, :, rep) = ACTION_SET(:, next_action_idx);
+                else
+                    num_action = size(ACTION_SET, 2);
+                    prob_dist = 1/num_actin * ones(num_action, 1);
+                    next_action_idx = discretesample(prob_dist, 1);
+                    u_save(t, r, :, rep) = ACTION_SET(:, next_action_idx);
+                end
+           else
+                % BSG: sample actions from p(t) that is based on targets'
+                % positions from 1 to t-1
+                P(r).update_action_prob_dist(t);
+                P(r).selected_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
+                u_save(t, r, :, rep) = ACTION_SET(:, P(r).selected_action_index(t));
+            end            
+        end
+        % Move Robots
+        for r = 1:num_robot
+            R(r).move(squeeze(u_save(t, r, :, rep)));
+            x_true(t,r,:,rep) = R(r).get_x();
+        end
         % Sense
         for r = 1:num_robot
             % targets
@@ -176,61 +217,36 @@ for rep = 1:num_rep
         % positions at t (planned at t-1) and the environment at t
         % only detected targets can be considered.
         if strcmp(planner_name, 'greedy')
-            obj_greedy(t, rep) = objective_function(squeeze(x_true(t, :, :, rep))', tg_true(1:2,detected, t, rep), R(1).r_sense, R(1).fov);
+            obj_greedy(t, rep) = objective_function(squeeze(x_true(t, :, :, rep))', tg_true(1:2, detected, t, rep), R(1).r_sense, R(1).fov);
         end
-        % Plan Moves -> compute u_save(t, r, :, rep)
-        % both BSG and Greedy only know targets' positions at t
-        prev_robot_states = zeros(3, 0);
-        for r = 1:num_robot
-            if strcmp(planner_name, 'greedy')
-                % Greedy: select actions based on targets' positions at t-1,
-                % so for Greedy, targets should move to positions at t
-                % after Greedy selects actions 
-                % TODO: for Greedy, we need to let targets move after Greedy selects actions 
-                [next_action_idx, next_state] = G(r).greedy_action(t, squeeze(x_true(t, r, :, rep)), tg_true(1:2, detected, t, rep), prev_robot_states, R(r).r_sense, R(r).fov);
 
-                % move robot
-                R(r).set_x(next_state);
-                x_true(t,r,:,rep) = next_state;
-
-                % prepare for planning for next robot
-                prev_robot_states = [prev_robot_states next_state];
-
-                u_save(t, r, :, rep) = ACTION_SET(:, next_action_idx);
-            else
-                % BSG: sample actions from p(t) that is based on targets'
-                % positions from 1 to t-1
-                P(r).update_action_prob_dist(t);
-                P(r).selected_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
-                u_save(t, r, :, rep) = ACTION_SET(:, P(r).selected_action_index(t));
-            end            
-        end
-        
-
-        
+                
         if strcmp(planner_name, 'bsg')
             % BSG: update experts after selecting actions
             prev_robot_states = zeros(3, 0);
-            for r = 1:num_robot
+            r_v = 1:num_robot;
+            itr_order = r_v(randperm(length(r_v)));
+            for r = itr_order
+                if size(tg_save{t, rep}, 2) ~= 0
+                    % previous objective function
+                    prev_obj_BSG = objective_function(prev_robot_states, tg_save{t, rep}, R(r).r_sense, R(r).fov);
 
-                % previous objective function
-                prev_obj_BSG = objective_function(prev_robot_states, tg_true(1:2,:, t, rep), R(r).r_sense, R(r).fov);
+                    % this robot moves
+                    prev_robot_states = [prev_robot_states R(r).get_x()];
 
-                % this robot moves
-                R(r).move(squeeze(u_save(t, r, :, rep)));
-                x_true(t,r,:,rep) = R(r).get_x();
-                prev_robot_states = [prev_robot_states R(r).get_x()];
+                    % current objective function
+                    curr_obj_BSG = objective_function(prev_robot_states, tg_save{t, rep}, R(r).r_sense, R(r).fov);
 
-                % current objective function
-                curr_obj_BSG = objective_function(prev_robot_states, tg_true(1:2,:, t, rep), R(r).r_sense, R(r).fov);
-
-                % compute normalized reward, then loss
-                reward = (curr_obj_BSG - prev_obj_BSG) / (0 - prev_obj_BSG);
-                if reward < 0 || reward > 1
-                    error("wrong reward");
+                    % compute normalized reward, then loss
+                    reward = (curr_obj_BSG - prev_obj_BSG) / (0 - prev_obj_BSG);
+                    if reward < 0 || reward > 1
+                        error("wrong reward");
+                    end
+                    loss = 1 - reward;
+                    P(r).loss(t, P(r).selected_action_index(t)) = loss;
+                else
+                    P(r).loss(t, P(r).selected_action_index(t)) = 1;
                 end
-                loss = 1 - reward;
-                P(r).loss(t, P(r).selected_action_index(t)) = loss;
 
                 % update experts
                 P(r).update_experts(t);
