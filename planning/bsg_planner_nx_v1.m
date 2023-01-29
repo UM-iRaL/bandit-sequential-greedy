@@ -6,7 +6,7 @@ classdef bsg_planner_nx_v1 < handle
         robot_idx;
         num_robot;
 
-        next_action_index;
+        selected_action_index;
         % BSG params
         J; % number of experts
         e;
@@ -32,7 +32,7 @@ classdef bsg_planner_nx_v1 < handle
             this.actions = actions;
             this.n_actions = length(actions);
             this.action_indices = 1:this.n_actions;
-            this.next_action_index = ones(n_time_step, 1);
+            this.selected_action_index = ones(n_time_step, 1);
             learning_const = 4;
             this.J = ceil(log(n_time_step));
             this.e = learning_const*sqrt(log(this.J) / 2 / n_time_step);
@@ -62,8 +62,8 @@ classdef bsg_planner_nx_v1 < handle
             % update weights
             for j = 1:this.J
                 %nxt_a_idx = this.next_action_index(t);
-                this.loss_estm(t, this.next_action_index(t)) = this.loss(t, this.next_action_index(t)) /...
-                    (this.action_prob_dist(t, this.next_action_index(t)) + this.gamma(j));
+                this.loss_estm(t, this.selected_action_index(t)) = this.loss(t, this.selected_action_index(t)) /...
+                    (this.action_prob_dist(t, this.selected_action_index(t)) + this.gamma(j));
                 v = zeros(this.n_actions,1);
                 for i = 1 : this.n_actions
                     v(i) = this.action_weight(t, j, i) * exp(-this.eta(j)*this.loss_estm(t, i));
@@ -132,7 +132,7 @@ classdef bsg_planner_nx_v1 < handle
             prev_reward = 1 - prev_loss;
             dimi_reward = cur_reward - prev_reward;
             loss = 1 - dimi_reward;
-            this.loss(t, this.next_action_index(t)) = loss;
+            this.loss(t, this.selected_action_index(t)) = loss;
 
         end
     end
@@ -161,5 +161,6 @@ d = ld_Us/ds + scale*ld_Uy/dy;
 %ds = scale*(size(R,1) - dy);   % static dimension
 %d = ds*d0 - (ds-dy)*d1;
 end
+
 
 

@@ -1,4 +1,4 @@
-function obj_sum = objective_function(robot_states, target_states, r_sense, fov)%, G, robot_indices)
+function obj_sum = objective_function(robot_states, target_states, r_sense, fov)
 % param robot_states: 3 x num_rob
 % param target_states: 2 x num_tar
 % return obj: objective function
