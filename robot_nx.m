@@ -9,21 +9,21 @@ classdef robot_nx < handle
         stdev_w = 0;
         
         % Sensor 
-        fov = deg2rad(45); %deg2rad(94);     % deg2rad(124);
+        fov = deg2rad(120); %deg2rad(94);     % deg2rad(124);
         r_sense = 300;          % meter
         
         % Detection model
         %p0 = [0.9474; 0.8797; 0.9173; 1.0000; 0.8872];
-        p0 = 0.90*ones(5,1);
-        v0 = 20.5*ones(5,1);
-        m0 = 3*ones(5,1);
+        p0 = 0.90*ones(8,1);
+        v0 = 20.5*ones(8,1);
+        m0 = 3*ones(8,1);
         
         % Bearing Model
-        b_sigma = deg2rad(0.1);
+        b_sigma = deg2rad(1);
         % To stop bearing noise let b_sigma = 0;
         
         % Range Model
-        r_sigma = 0.15;
+        r_sigma = 1;
         % To stop range noise let r_sigma = 0;        
         
         
@@ -37,17 +37,13 @@ classdef robot_nx < handle
         
         % Class Model
         % Confusion matrix ( hypothesized x true )
-        num_class = 5;%2;
+        num_class = 8;%2;
         num_score = 11;%28;
         
         meters2pix = 0.003;     % meters per pixel
         cx = 360; cy = 180;     % center of image in pixels
         
-        Cmat = [0.7634    0.0410    0.1339    0.0725    0.3089
-            0.0229    0.7705    0.0551    0.0145    0.0244
-            0.0305    0.0492    0.6378    0.0217    0.0488
-            0.0611    0.0983    0.0630    0.8116    0.0244
-            0.1221    0.0410    0.1102    0.0797    0.5935];
+        Cmat = eye(8);
         % To stop class confusion let Cmat = eye(5);
         
     end

@@ -1,13 +1,13 @@
+%% four robots vs. eight target battle.
+
 clear all;
-close all;
+%close all;
 % Experiment parameters
 num_rep = 1;
 run_len = 1000;
-num_robot = 1;
-num_tg = 1;
+num_robot = 4;
+num_tg = 8;
 map_size = 100;
-
-rng(1,'philox');
 
 % Action set for robots
 % [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
@@ -24,18 +24,22 @@ vis_map_save = cell(run_len,num_rep);
 
 % Initial pose for robots
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
-x_true(1, 1, :, :) = repmat([30;0;0],1,num_rep);
-x_true(1, 2, :, :) = repmat([0; 30; pi/2],1,num_rep);
-x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
-x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
+x_true(1, 1, :, :) = repmat([-20;0;0],1,num_rep);
+x_true(1, 2, :, :) = repmat([0; -20; pi/2],1,num_rep);
+x_true(1, 3, :, :) = repmat([20; 0; pi],1,num_rep);
+x_true(1, 4, :, :) = repmat([0; 20; 3/2*pi],1,num_rep);
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([80;0;1],1,num_rep);
-% tg_true(:,2,1,:) = repmat([0;80;2],1,num_rep);
-% tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
-% tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
+tg_true(:,1,1,:) = repmat([70;0;1],1,num_rep);
+tg_true(:,2,1,:) = repmat([50;50;2],1,num_rep);
+tg_true(:,3,1,:) = repmat([0;70;3],1,num_rep);
+tg_true(:,4,1,:) = repmat([-50;50;4],1,num_rep);
+tg_true(:,5,1,:) = repmat([-70;0;5],1,num_rep);
+tg_true(:,6,1,:) = repmat([-50;-50;6],1,num_rep);
+tg_true(:,7,1,:) = repmat([-0;-70;7],1,num_rep);
+tg_true(:,8,1,:) = repmat([50;-50;8],1,num_rep);
 
 
 % Measurement History Data
@@ -51,9 +55,9 @@ obj_greedy = zeros(run_len, num_rep);
 
 % Should we get video and image?
 vid = false;
-viz = true;
-planner_name = 'greedy';
-vid_name = strcat(strcat('video\four_targets_', planner_name),'_test.mp4');
+viz = false;
+planner_name = 'bsg';
+vid_name = strcat(strcat('video\four_vs_eight_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
 
 for rep = 1:num_rep
@@ -67,10 +71,14 @@ for rep = 1:num_rep
             R(r).fov);
     end
     
-    T(1) = target_v1(1, 0.25, tg_true(:,1,1,rep), run_len, 'circle');
-%     T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
-%     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
-%     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
+    T(1) = target_v1(1, 0.15, tg_true(:,1,1,rep), run_len, 'circle');
+    T(2) = target_v1(2, 0.15, tg_true(:,2,1,rep), run_len, 'random');
+    T(3) = target_v1(3, 0.15, tg_true(:,3,1,rep), run_len, 'random');
+    T(4) = target_v1(4, 0.15, tg_true(:,4,1,rep), run_len, 'random');
+    T(5) = target_v1(5, 0.15, tg_true(:,5,1,rep), run_len, 'horizontal');
+    T(6) = target_v1(6, 0.15, tg_true(:,6,1,rep), run_len, 'rect');
+    T(7) = target_v1(7, 0.15, tg_true(:,7,1,rep), run_len, 'vertical');
+    T(8) = target_v1(8, 0.15, tg_true(:,8,1,rep), run_len, 'random');
     % Visualization
     if viz
         figure('Color',[1 1 1],'Position',[100,277,1200,800]);
@@ -310,6 +318,6 @@ ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
 xlabel('Time Steps','FontSize',fnt_sz);
 set(gca,'fontsize',fnt_sz);
 xlim([0,run_len]);
-ylim([-5,15]);
-set(gca,'YTick',[-5 0 5 10 15]);
+ylim([-5,45]);
+set(gca,'YTick',[-5 0 5 10 15 20 25 30 35 40 45]);
 title(planner_name);

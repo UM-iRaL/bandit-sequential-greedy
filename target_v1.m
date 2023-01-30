@@ -34,7 +34,7 @@ classdef target_v1 < handle
             [min_dist_sqr, min_idx] = min(dist_vec(1, :).^2 + dist_vec(2, :).^2);
             min_dist = sqrt(min_dist_sqr);
             % if robots are within certain range, enter escape mode.
-            if min_dist < 5
+            if min_dist < 0
                 this.state = 'escape';
                 this.v = this.initial_v * 2;
             else
@@ -69,7 +69,12 @@ classdef target_v1 < handle
                 elseif strcmp(this.type, 'triangular')
                     this.x(t+1, :) = this.x(t, :);
                 elseif strcmp(this.type, 'zigzag')
-                    
+                elseif strcmp(this.type, 'vertical')
+                    this.x(t+1, 1) = this.x(t, 1);
+                    this.x(t+1, 2) = this.x(t, 2) + this.v;
+                elseif strcmp(this.type, 'horizontal')
+                    this.x(t+1, 1) = this.x(t, 1) + this.v;
+                    this.x(t+1, 2) = this.x(t, 2);
                 else
                     error('unseen type.')
                 end
@@ -77,7 +82,6 @@ classdef target_v1 < handle
                 % escape mode, double speed and escape.
                 escape_dir = dist_vec(:, min_idx) / min_dist;
                 this.x(t+1, 1:2) = (this.x(t, 1:2)' + escape_dir * this.v)';
-
             end
             
         end

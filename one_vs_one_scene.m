@@ -1,3 +1,5 @@
+%% single robot vs. single target battle.
+
 clear all;
 close all;
 % Experiment parameters
@@ -53,7 +55,7 @@ obj_greedy = zeros(run_len, num_rep);
 vid = false;
 viz = true;
 planner_name = 'greedy';
-vid_name = strcat(strcat('video\four_targets_', planner_name),'_test.mp4');
+vid_name = strcat(strcat('video\one_vs_one_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
 
 for rep = 1:num_rep
