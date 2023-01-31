@@ -55,7 +55,7 @@ obj_greedy = zeros(run_len, num_rep);
 
 % Should we get video and image?
 vid = false;
-viz = false;
+viz = true;
 planner_name = 'bsg';
 vid_name = strcat(strcat('video\four_vs_eight_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
@@ -63,7 +63,7 @@ vid_name = strcat(strcat('video\four_vs_eight_', planner_name),'_test.mp4');
 for rep = 1:num_rep
     % Create Robots and Planners
     for r = 1:num_robot
-        R(r) = robot_nx(x_true(1, r, :, rep));
+        R(r) = robot_nx(x_true(1, r, :, rep), 100, deg2rad(94));
         P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
 

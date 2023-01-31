@@ -1,7 +1,7 @@
 classdef robot_nx < handle
     properties (Constant = true)
         % Vehicle
-        T = 0.5;            % sampling period
+        T = 1;            % sampling period
         %stdev_v = 0.1;     % motion noise
         %stdev_w = deg2rad(5);
         
