@@ -17,7 +17,8 @@ rng(1,'philox');
 % ACTION_SET = normalize(ACTION_SET, 1, "norm");
 % ACTION_SET(isnan(ACTION_SET)) = 0;
 directions = [0:3] * pi/2;
-ACTION_SET = [cos(directions); sin(directions)];
+v_robot = 0.5;
+ACTION_SET = v_robot * [cos(directions); sin(directions)];
 
 % Visibility map
 vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'logical');
@@ -54,7 +55,7 @@ obj_greedy = zeros(run_len, num_rep);
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'greedy';
+planner_name = 'bsg';
 vid_name = strcat(strcat('video\one_vs_one_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
 
@@ -69,7 +70,7 @@ for rep = 1:num_rep
             R(r).fov);
     end
     
-    T(1) = target_v1(1, 0.25, tg_true(:,1,1,rep), run_len, 'circle');
+    T(1) = target_v1(1, 0.2, tg_true(:,1,1,rep), run_len, 'circle');
 %     T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
 %     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');

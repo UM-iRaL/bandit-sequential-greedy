@@ -7,13 +7,7 @@ classdef robot_nx < handle
         
         stdev_v = 0;     % no motion noise
         stdev_w = 0;
-        
-        % Sensor 
-        fov = deg2rad(120); %deg2rad(94);     % deg2rad(124);
-        r_sense = 300;          % meter
-        
         % Detection model
-        %p0 = [0.9474; 0.8797; 0.9173; 1.0000; 0.8872];
         p0 = 0.90*ones(8,1);
         v0 = 20.5*ones(8,1);
         m0 = 3*ones(8,1);
@@ -47,15 +41,22 @@ classdef robot_nx < handle
         % To stop class confusion let Cmat = eye(5);
         
     end
+
     properties (SetAccess = protected, GetAccess = protected)
         x = [0;0;0];    % robot pose
+
+
+        
     end
     properties (SetAccess = protected, GetAccess = public)
-        params;            
+        params;     
+        % Sensor
+        fov = deg2rad(94); %deg2rad(94);     % deg2rad(124);
+        r_sense = 45;          % meter
     end
     
     methods
-        function obj = robot_nx(x0)
+        function obj = robot_nx(x0, r_sense, fov)
             if(nargin < 1)
                 x0 = [0;0;0];
             end
@@ -65,9 +66,15 @@ classdef robot_nx < handle
             obj.params.T = obj.T;
             obj.params.stdev_v = obj.stdev_v;
             obj.params.stdev_w = obj.stdev_w;
-
-            obj.params.r_sense = obj.r_sense;
-            obj.params.fov = obj.fov;
+            if (nargin < 3)
+                obj.params.r_sense = obj.r_sense;
+                obj.params.fov = obj.fov;
+            else
+                obj.params.r_sense = r_sense;
+                obj.params.fov = fov;
+                obj.r_sense = r_sense;
+                obj.fov = fov;
+            end
             obj.params.b_sigma = obj.b_sigma;
             obj.params.r_sigma = obj.r_sigma;
             

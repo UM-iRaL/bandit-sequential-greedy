@@ -1,39 +1,39 @@
 %% two robots vs. two target battle.
-
 clear all;
 close all;
 % Experiment parameters
 num_rep = 1;
-run_len = 1000;
+run_len = 1100;
 num_robot = 2;
 num_tg = 2;
 map_size = 100;
+rng(1,'philox');
 
 % Action set for robots
 % [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
 % ACTION_SET = transpose([Vx(:), Vy(:)]);
 % ACTION_SET = normalize(ACTION_SET, 1, "norm");
 % ACTION_SET(isnan(ACTION_SET)) = 0;
-directions = [0:3] * pi/2;
+directions = [0:7] * pi/4;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
-vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'logical');
+vis_map = init_blank_ndmap([-map_size*2; -map_size*2],[map_size*2; map_size*2],0.25,'logical');
 %vis_map.map = ~vis_map.map;
 vis_map_save = cell(run_len,num_rep);
 
 % Initial pose for robots
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
-x_true(1, 1, :, :) = repmat([-80;0;0],1,num_rep);
-x_true(1, 2, :, :) = repmat([0; -80; pi/2],1,num_rep);
+x_true(1, 1, :, :) = repmat([-120;0;0],1,num_rep);
+x_true(1, 2, :, :) = repmat([0; -120; pi/2],1,num_rep);
 % x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
 % x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([-70;0;1],1,num_rep);
-tg_true(:,2,1,:) = repmat([0;-70;2],1,num_rep);
+tg_true(:,1,1,:) = repmat([-100;0;1],1,num_rep);
+tg_true(:,2,1,:) = repmat([0;-100;2],1,num_rep);
 % tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
 % tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
 
@@ -50,46 +50,57 @@ obj_greedy = zeros(run_len, num_rep);
 
 
 % Should we get video and image?
-vid = true;
+vid = false;
 viz = true;
-planner_name = 'greedy';
-vid_name = strcat(strcat('video\two_vs_two_', planner_name),'_test.mp4');
+planner_name = 'bsg';
+vid_name = strcat(strcat('video\htg_two_vs_two_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
 
 for rep = 1:num_rep
     % Create Robots and Planners
+    v_robot = [1.2; 0.8];
     for r = 1:num_robot
-        R(r) = robot_nx(x_true(1, r, :, rep));
-        P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
+        if r == 1
+            R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(60));
+        else
+            R(r) = robot_nx(x_true(1, r, :, rep), 70, deg2rad(94));
+        end
+        
+        P(r) = bsg_planner_nx_v1(num_robot,r, v_robot(r)*ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
 
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    
-    T(1) = target_v1(1, 0.15, tg_true(:,1,1,rep), run_len, 'horizontal');
-    T(2) = target_v1(2, 0.15, tg_true(:,2,1,rep), run_len, 'vertical');
+    v_tg = [0.3; 0.4];
+    T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep), run_len, 'horizontal');
+    T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep), run_len, 'vertical');
 %     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[100,277,1200,800]);
+        figure('Color',[1 1 1],'Position',[0,0,1000,1000]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
         cbone = bone; colormap(cbone(end:-1:(end-30),:));
               
-        axis([-map_size,map_size,-map_size,map_size]);
+        axis([-1.75*map_size,1.75*map_size,-1.75*map_size,1.75*map_size]);
         for r = 1:num_robot
-            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),'g',2.2);
-            h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
+            if r == 1
+                r_color = 'b';
+            elseif r == 2
+                r_color = 'r';
+            end
+            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),r_color,5);
+            h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense, r_color);
         end
         %h0.xe = draw_traj_nx([],permute(x_save(1,:,:,rep),[1 3 2]),'r:');
         h0.tg_cov = [];
         h0.tg = [];
 
         for kk = 1:num_tg
-            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'r',2.2);
+            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
         end
         title(sprintf('Time Step: %d',0));
         xlabel('x [m]','FontSize',14);
@@ -97,7 +108,7 @@ for rep = 1:num_rep
         drawnow;
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
-            writerObj.FrameRate = 25;
+            writerObj.FrameRate = 40;
             open(writerObj);
         end
     end
@@ -140,7 +151,12 @@ for rep = 1:num_rep
                 % BSG: sample actions from p(t) that is based on targets'
                 % positions from 1 to t-1
                 P(r).update_action_prob_dist(t);
-                P(r).selected_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
+                if(sum(isnan(P(r).action_prob_dist(t, :))) > 0)
+                    % Numerical unstable
+                    P(r).selected_action_index(t) = discretesample(P(r).action_prob_dist(t-1,:), 1);
+                else
+                    P(r).selected_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
+                end
                 u_save(t, r, :, rep) = ACTION_SET(:, P(r).selected_action_index(t));
             end            
         end
@@ -258,11 +274,17 @@ for rep = 1:num_rep
         if viz
             set(h0.viz,'cdata',vis_map.map.');
 
-            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'b:');
+            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'g:');
 
             for r = 1:num_robot
-                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),'g',2.2);
+                if r == 1
+                    r_color = 'b';
+                elseif r == 2
+                    r_color = 'r';   
+                end
+                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,5);
                 h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
+                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,:,rep),[1 3 2 4]),strcat(r_color, ':'));
             end
             tmp = estm_tg_save{t, rep};
             if ~isempty(tmp)
@@ -273,7 +295,7 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'r',2.2);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
             end
             title(sprintf('Time Step: %d',t));
            
