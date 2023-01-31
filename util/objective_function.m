@@ -5,7 +5,7 @@ function obj_sum = objective_function(robot_states, target_states, r_sense, fov)
 
     num_tar = size(target_states, 2);
     num_rob = size(robot_states, 2);
-    map_size = 50;
+    map_size = 200;
     obj = (-1 / map_size^(2)) * ones(num_tar, 1);
 
     if num_rob ~= 0
@@ -17,7 +17,7 @@ function obj_sum = objective_function(robot_states, target_states, r_sense, fov)
                 if visibility(robot_state, target_state, r_sense, fov)
                     % target i is observed by robot j
                     d = norm(robot_state(1:2) - target_state);
-                    obj(i) = obj(i) - 1 / (d^(2)+1);
+                    obj(i) = obj(i) - 1 / (d^(2)+3);
 
 %                     obj(i) = obj(i) * 1 / (d+1);
                     %obj(i) = obj(i) - d;

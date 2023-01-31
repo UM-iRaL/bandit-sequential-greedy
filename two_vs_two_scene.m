@@ -3,7 +3,7 @@ clear all;
 close all;
 % Experiment parameters
 num_rep = 1;
-run_len = 1200;
+run_len = 700;
 num_robot = 2;
 num_tg = 2;
 map_size = 100;
@@ -14,7 +14,7 @@ rng(1,'philox');
 % ACTION_SET = transpose([Vx(:), Vy(:)]);
 % ACTION_SET = normalize(ACTION_SET, 1, "norm");
 % ACTION_SET(isnan(ACTION_SET)) = 0;
-directions = [0:7] * pi/4;
+directions = [0:3] * pi/2;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
@@ -32,7 +32,7 @@ x_true(1, 2, :, :) = repmat([0; -110; pi/2],1,num_rep);
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([-100;0;1],1,num_rep);
+tg_true(:,1,1,:) = repmat([-90;0;1],1,num_rep);
 tg_true(:,2,1,:) = repmat([0;-100;2],1,num_rep);
 % tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
 % tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
@@ -58,7 +58,7 @@ vid_name = strcat(strcat('video\htg_two_vs_two_', planner_name),'_test.mp4');
 
 for rep = 1:num_rep
     % Create Robots and Planners
-    v_robot = [0.7; 0.5];
+    v_robot = [0.5; 0.4];
     for r = 1:num_robot
         if r == 1
             R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(94));
@@ -215,17 +215,17 @@ for rep = 1:num_rep
         estm_tg_save{t, rep} = estm_tg(:, detected);
         
         estm_tg =  estm_tg(:, detected);
-        att = [];
-        %dev = 1:10;
-        for kk = 1:size(estm_tg, 2)
-            for r = 1:num_robot
-                d = estm_tg(:, kk) -  squeeze(x_true(t,r,1:2,rep));
-                    %dv = 8*d/norm(d);
-                    %att = [att  estm_tg(:, kk) - dv*dev];
-                    num_att = floor(norm(d)/5);
-                    att = [att  repmat(estm_tg(:, kk), 1, num_att)];              
-            end            
-        end
+%         att = [];
+%         %dev = 1:10;
+%         for kk = 1:size(estm_tg, 2)
+%             for r = 1:num_robot
+%                 d = estm_tg(:, kk) -  squeeze(x_true(t,r,1:2,rep));
+%                     %dv = 8*d/norm(d);
+%                     %att = [att  estm_tg(:, kk) - dv*dev];
+%                     num_att = floor(norm(d)/5);
+%                     att = [att  repmat(estm_tg(:, kk), 1, num_att)];              
+%             end            
+%         end
         % assign target with zeros obsevation with big covariance
 
         for kk = 1:num_tg
@@ -250,7 +250,7 @@ for rep = 1:num_rep
             prev_robot_states = zeros(3, 0);
             r_v = 1:num_robot;
             itr_order = r_v(randperm(length(r_v)));
-            for r = num_robot:-1:1% itr_order% 1:num_robot% 
+            for r =  num_robot:-1:1% % 1:num_robot%itr_order%
                 if size(estm_tg_save{t, rep}, 2) ~= 0
 
                     % previous objective function
@@ -265,8 +265,11 @@ for rep = 1:num_rep
                     % compute normalized reward, then loss
                     
                     reward(r, t, rep) = (curr_obj_BSG - prev_obj_BSG) / (0 - prev_obj_BSG);
+%                     reward(r, t, rep) = (curr_obj_BSG - prev_obj_BSG) / (prev_obj_BSG/2 - prev_obj_BSG);
 
                     if reward(r, t, rep) < 0 || reward(r, t, rep) > 1
+%                         reward(r, t, rep) = reward(r, t, rep) / 2;
+                        
                         error("wrong reward");
                     end
                     loss = 1 - reward(r, t, rep);
