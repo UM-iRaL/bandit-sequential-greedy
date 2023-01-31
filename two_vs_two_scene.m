@@ -3,7 +3,7 @@ clear all;
 close all;
 % Experiment parameters
 num_rep = 1;
-run_len = 700;
+run_len = 1000;
 num_robot = 2;
 num_tg = 2;
 map_size = 100;
@@ -195,18 +195,14 @@ for rep = 1:num_rep
                     detected(target_id) = true;
                 else
                     % sensor fusion
-                    estm_tg_old = estm_tg(:, target_id);
-                    estm_tg_cov_old = estm_tg_cov(:,:,target_id);
-                    estm_tg_new = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
+                    estm_tg_1 = estm_tg(:, target_id);
+                    estm_tg_cov_1 = estm_tg_cov(:,:,target_id);
+                    estm_tg_2 = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
                     cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
-                    estm_tg_cov_new = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
-                    
-                    info_matrix = inv(estm_tg_cov_old) + inv(squeeze(estm_tg_cov_new));
-                    estm_tg_cov_fused = inv(info_matrix);
-                    estm_tg_fused = info_matrix\(estm_tg_cov_old\estm_tg_old + squeeze(estm_tg_cov_new)\estm_tg_new);
-                    
-                    estm_tg(:, target_id) = estm_tg_fused;
-                    estm_tg_cov(:, :, target_id) = estm_tg_cov_fused;
+                    estm_tg_cov_2 = squeeze(inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z));
+                    beta = (estm_tg_cov_1 + estm_tg_cov_2)\estm_tg_cov_2;
+                    estm_tg(:, target_id) = beta*estm_tg_1 + (eye(2) - beta)*estm_tg_2;
+                    estm_tg_cov(:, :, target_id) = beta*estm_tg_cov_1*beta' + (eye(2)-beta)*estm_tg_cov_2*(eye(2)-beta)';
                 end
             end
         end
