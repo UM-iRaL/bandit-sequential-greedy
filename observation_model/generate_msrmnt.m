@@ -82,10 +82,10 @@ else
     zr = sample_range_om(y_detected,[x(1),x(2),x(3)],params.r_sigma);
     zb = sample_bearing_om(y_detected,[x(1),x(2),x(3)],params.b_sigma);
     zb = restrict_angle(zb - x(3));     % convert to robot frame
-    zc = sample_class_om(y_detected(:,3),params.Cmat);
-    zs = sample_score_om(zc,y_detected(:,3),params.pscymat);
+    %zc = sample_class_om(y_detected(:,3),params.Cmat);
+    %zs = sample_score_om(zc,y_detected(:,3),params.pscymat);
     
-    Z = [zr(:), zb(:),zc(:),zs(:)];
+    Z = [zr(:), zb(:)];
     %Z = [zr(:),zb(:)];
 end
 

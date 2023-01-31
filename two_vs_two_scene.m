@@ -1,27 +1,13 @@
+%% two robots vs. two target battle.
 clear all;
 close all;
 % Experiment parameters
 num_rep = 1;
 run_len = 1000;
-num_robot = 1;
-num_tg = 1;
+num_robot = 2;
+num_tg = 2;
 map_size = 100;
-
 rng(1,'philox');
-% Should we get video and image?
-vid = false;
-viz = true;
-%planner_name = 'bsg';
-planner_name = 'greedy';
-% planner_name = 'bsg';
-vid_name = strcat(strcat('video\dd_single_target_random_order_', planner_name),'_test.mp4');
-% mode = 'analysis';
-mode = 'experiment';
-if strcmp(mode, 'analysis')
-    num_rep = num_rep*3;
-    vid = false;
-    viz = false;
-end
 
 % Action set for robots
 % [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
@@ -32,24 +18,22 @@ directions = [0:3] * pi/2;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
-vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'logical');
+vis_map = init_blank_ndmap([-map_size*2; -map_size*2],[map_size*2; map_size*2],0.25,'logical');
 %vis_map.map = ~vis_map.map;
 vis_map_save = cell(run_len,num_rep);
 
 % Initial pose for robots
-
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
-x_true(1, 1, :, :) = repmat([30;0;0],1,num_rep);
-x_true(1, 2, :, :) = repmat([0; 30; pi/2],1,num_rep);
-x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
-x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
+x_true(1, 1, :, :) = repmat([-120;0;0],1,num_rep);
+x_true(1, 2, :, :) = repmat([0; -110; pi/2],1,num_rep);
+% x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
+% x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([80;0;1],1,num_rep);
-
-% tg_true(:,2,1,:) = repmat([0;80;2],1,num_rep);
+tg_true(:,1,1,:) = repmat([-90;0;1],1,num_rep);
+tg_true(:,2,1,:) = repmat([0;-100;2],1,num_rep);
 % tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
 % tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
 
@@ -63,54 +47,60 @@ estm_tg_save = cell(run_len,num_rep);
 estm_tg_cov_save = cell(run_len,num_rep);
 all_tg_cov = zeros(2*num_tg, 2*num_tg, run_len, num_rep);
 obj_greedy = zeros(run_len, num_rep);
-
-
+reward = zeros(num_robot, run_len, num_rep);
 
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'greedy';
-vid_name = strcat(strcat('video\four_targets_', planner_name),'_test.mp4');
+planner_name = 'bsg';
+vid_name = strcat(strcat('video\htg_two_vs_two_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
 
 for rep = 1:num_rep
     % Create Robots and Planners
+    v_robot = [0.5; 0.4];
     for r = 1:num_robot
-        R(r) = robot_nx(x_true(1, r, :, rep));
-        P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
+        if r == 1
+            R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(94));
+        else
+            R(r) = robot_nx(x_true(1, r, :, rep), 100, deg2rad(94));
+        end
+        
+        P(r) = bsg_planner_nx_v1(num_robot,r, v_robot(r)*ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
 
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
-        P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
-            R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
     end
-
-    
-    T(1) = target_v1(1, 0.25, tg_true(:,1,1,rep), run_len, 'circle');
-%     T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
+    v_tg = [0.3; 0.4];
+    T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep), run_len, 'horizontal');
+    T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep), run_len, 'vertical');
 %     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
-
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[100,277,1200,800]);
+        figure('Color',[1 1 1],'Position',[0,0,1000,1000]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
         cbone = bone; colormap(cbone(end:-1:(end-30),:));
               
-        axis([-map_size,map_size,-map_size,map_size]);
+        axis([-1.75*map_size,1.75*map_size,-1.75*map_size,1.75*map_size]);
         for r = 1:num_robot
-            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),'g',2.2);
-            h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
+            if r == 1
+                r_color = 'b';
+            elseif r == 2
+                r_color = 'r';
+            end
+            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),r_color,5);
+            h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense, r_color);
         end
-
+        %h0.xe = draw_traj_nx([],permute(x_save(1,:,:,rep),[1 3 2]),'r:');
         h0.tg_cov = [];
         h0.tg = [];
-
+        h0.ye = [];
         for kk = 1:num_tg
-            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'r',2.2);
+            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
         end
         title(sprintf('Time Step: %d',0));
         xlabel('x [m]','FontSize',14);
@@ -118,14 +108,13 @@ for rep = 1:num_rep
         drawnow;
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
-            writerObj.FrameRate = 25;
+            writerObj.FrameRate = 40;
             open(writerObj);
         end
     end
 
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
-
 
         % Move Targets and get targets' positions at t
         for kk = 1:num_tg
@@ -135,7 +124,6 @@ for rep = 1:num_rep
         % Plan Moves -> compute u_save(t, r, :, rep)
         % both BSG and Greedy only know targets' positions at t
         prev_robot_states = zeros(3, 0);
-
         for r = 1:num_robot
             if strcmp(planner_name, 'greedy')
                 if t > 1
@@ -152,19 +140,20 @@ for rep = 1:num_rep
                     % prepare for planning for next robot
                     prev_robot_states = [prev_robot_states next_state];
 
-                    u_save(t, r, :, rep) = ACTION_SET(:, next_action_idx);
+                    u_save(t, r, :, rep) = v_robot(r) * ACTION_SET(:, next_action_idx);
                 else
                     num_action = size(ACTION_SET, 2);
                     prob_dist = 1/num_action * ones(num_action, 1);
                     next_action_idx = discretesample(prob_dist, 1);
-                    u_save(t, r, :, rep) = ACTION_SET(:, next_action_idx);
+                    u_save(t, r, :, rep) = v_robot(r) * ACTION_SET(:, next_action_idx);
                 end
            else
                 % BSG: sample actions from p(t) that is based on targets'
                 % positions from 1 to t-1
                 P(r).update_action_prob_dist(t);
                 P(r).selected_action_index(t) = discretesample(P(r).action_prob_dist(t,:), 1);
-                u_save(t, r, :, rep) = ACTION_SET(:, P(r).selected_action_index(t));
+                
+                u_save(t, r, :, rep) = v_robot(r) * ACTION_SET(:, P(r).selected_action_index(t));
             end            
         end
         % Move Robots
@@ -206,28 +195,34 @@ for rep = 1:num_rep
                     detected(target_id) = true;
                 else
                     % sensor fusion
-                    estm_tg_old = estm_tg(:, target_id);
-                    estm_tg_cov_old = estm_tg_cov(:,:,target_id);
-                    estm_tg_new = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
+                    estm_tg_1 = estm_tg(:, target_id);
+                    estm_tg_cov_1 = estm_tg_cov(:,:,target_id);
+                    estm_tg_2 = inverse_rb(squeeze(x_true(t, r, :, rep))', msrmnt_rb(k,1:2))';
                     cov_z = [R(r).r_sigma 0; 0 R(r).b_sigma];
-                    estm_tg_cov_new = inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z);
-                    
-                    info_matrix = inv(estm_tg_cov_old) + inv(squeeze(estm_tg_cov_new));
-                    estm_tg_cov_fused = inv(info_matrix);
-                    estm_tg_fused = info_matrix\(estm_tg_cov_old\estm_tg_old + squeeze(estm_tg_cov_new)\estm_tg_new);
-                    
-                    estm_tg(:, target_id) = estm_tg_fused;
-                    estm_tg_cov(:, :, target_id) = estm_tg_cov_fused;
+                    estm_tg_cov_2 = squeeze(inv_rb_cov(squeeze(x_true(t, r, :, rep)), msrmnt_rb(k,1:2), zeros(3,3), cov_z));
+                    beta = (estm_tg_cov_1 + estm_tg_cov_2)\estm_tg_cov_2;
+                    estm_tg(:, target_id) = beta*estm_tg_1 + (eye(2) - beta)*estm_tg_2;
+                    estm_tg_cov(:, :, target_id) = beta*estm_tg_cov_1*beta' + (eye(2)-beta)*estm_tg_cov_2*(eye(2)-beta)';
                 end
             end
         end
-
         % Log covariance
         estm_tg_cov_save{t, rep} = estm_tg_cov(:,:,detected);
         estm_tg_save{t, rep} = estm_tg(:, detected);
-
+        
+        estm_tg =  estm_tg(:, detected);
+%         att = [];
+%         %dev = 1:10;
+%         for kk = 1:size(estm_tg, 2)
+%             for r = 1:num_robot
+%                 d = estm_tg(:, kk) -  squeeze(x_true(t,r,1:2,rep));
+%                     %dv = 8*d/norm(d);
+%                     %att = [att  estm_tg(:, kk) - dv*dev];
+%                     num_att = floor(norm(d)/5);
+%                     att = [att  repmat(estm_tg(:, kk), 1, num_att)];              
+%             end            
+%         end
         % assign target with zeros obsevation with big covariance
-
 
         for kk = 1:num_tg
             if ~detected(kk)
@@ -251,23 +246,30 @@ for rep = 1:num_rep
             prev_robot_states = zeros(3, 0);
             r_v = 1:num_robot;
             itr_order = r_v(randperm(length(r_v)));
-            for r = itr_order
+            for r =  num_robot:-1:1% % 1:num_robot%itr_order%
                 if size(estm_tg_save{t, rep}, 2) ~= 0
-                    % previous objective function
-                    prev_obj_BSG = objective_function(prev_robot_states, estm_tg_save{t, rep}, R(r).r_sense, R(r).fov);
 
-                    % this robot moves
+                    % previous objective function
+                    prev_obj_BSG = objective_function(prev_robot_states, [estm_tg], R(r).r_sense, R(r).fov);
+
+                    % now consider new robot position
                     prev_robot_states = [prev_robot_states R(r).get_x()];
 
                     % current objective function
-                    curr_obj_BSG = objective_function(prev_robot_states, estm_tg_save{t, rep}, R(r).r_sense, R(r).fov);
+                    curr_obj_BSG = objective_function(prev_robot_states, [estm_tg], R(r).r_sense, R(r).fov);
 
                     % compute normalized reward, then loss
-                    reward = (curr_obj_BSG - prev_obj_BSG) / (0 - prev_obj_BSG);
-                    if reward < 0 || reward > 1
+                    
+                    reward(r, t, rep) = (curr_obj_BSG - prev_obj_BSG) / (0 - prev_obj_BSG);
+%                     reward(r, t, rep) = (curr_obj_BSG - prev_obj_BSG) / (prev_obj_BSG/2 - prev_obj_BSG);
+
+                    if reward(r, t, rep) < 0 || reward(r, t, rep) > 1
+%                         reward(r, t, rep) = reward(r, t, rep) / 2;
+                        
                         error("wrong reward");
                     end
-                    loss = 1 - reward;
+                    loss = 1 - reward(r, t, rep);
+%                     loss = loss^2;
                     P(r).loss(t, P(r).selected_action_index(t)) = loss;
                 else
                     P(r).loss(t, P(r).selected_action_index(t)) = 1;
@@ -277,16 +279,22 @@ for rep = 1:num_rep
                 P(r).update_experts(t);
             end
         end
-
+       
         % Visualization
         if viz
             set(h0.viz,'cdata',vis_map.map.');
 
-            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'b:');
+            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'g:');
 
             for r = 1:num_robot
-                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),'g',2.2);
+                if r == 1
+                    r_color = 'b';
+                elseif r == 2
+                    r_color = 'r';   
+                end
+                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,5);
                 h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
+                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,:,rep),[1 3 2 4]),strcat(r_color, ':'));
             end
             tmp = estm_tg_save{t, rep};
             if ~isempty(tmp)
@@ -297,9 +305,16 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'r',2.2);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
             end
             title(sprintf('Time Step: %d',t));
+            %{
+            if ~isempty(att)
+                att = [att; 5*ones(1, size(att,2))];
+            end
+            delete(h0.ye);
+            h0.ye = drawEnv(att',1);
+            %}
             drawnow;
             %pause(0.125)
             if vid
@@ -311,68 +326,17 @@ for rep = 1:num_rep
     if viz && vid
         close(writerObj);
     end
-
 end
 
 % Plot Measurement
+repToShow = 1;
+total_cost = zeros(run_len, num_rep);
 
-if strcmp(mode, 'analysis')
-    total_cost_greedy = zeros(run_len, num_rep/3);
-    for rep = 1 : num_rep/3
-        for t = 1 : run_len
-            total_cost_greedy(t, rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
+for rep = 1 : num_rep
+    for t = 1 : run_len
+        total_cost(t, rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
     end
-    total_cost_bsg = zeros(run_len, num_rep/3);
-    for rep = num_rep/3+1 : 2/3*num_rep
-        for t = 1 : run_len
-            total_cost_bsg(t, rep-1/3*num_rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
-    end
-    total_cost_random = zeros(run_len, num_rep/3);
-    for rep = 2/3*num_rep+1 : num_rep
-        for t = 1 : run_len
-            total_cost_random(t, rep-2/3*num_rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
-    end
-    fnt_sz = 10;
-    figure('Color',[1 1 1],'Position',[200 200 500 200]);
-    %plot(1:run_len,mean(total_cost, 2),'b-','linewidth',2);
-    shadedErrorBar(1:t, mean(total_cost_greedy', 1), std(total_cost_greedy'), 'lineprops','g')
-    shadedErrorBar(1:t, mean(total_cost_bsg', 1), std(total_cost_bsg'), 'lineprops','b')
-    shadedErrorBar(1:t, mean(total_cost_random', 1), std(total_cost_random'), 'lineprops','r')
-    ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
-    xlabel('Time Steps','FontSize',fnt_sz);
-    set(gca,'fontsize',fnt_sz);
-    xlim([0,run_len]);
-    ylim([-10,10]);
-    set(gca,'YTick',[-10 -5 0 5 10]);
-else
-    repToShow = 1;
-    total_cost = zeros(run_len, num_rep);
-    for rep = 1 : num_rep
-        for t = 1 : run_len
-            total_cost(t, rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
-    end
-
-    fnt_sz = 10;
-    figure('Color',[1 1 1],'Position',[200 200 500 200]);
-    if num_rep == 1
-        plot(1:run_len,mean(total_cost, 2),'b-','linewidth',2);
-    else
-        shadedErrorBar(1:t, mean(total_cost', 1), std(total_cost'), 'lineprops','g')
-    end
-    ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
-    xlabel('Time Steps','FontSize',fnt_sz);
-    set(gca,'fontsize',fnt_sz);
-    xlim([0,run_len]);
-    ylim([-10,10]);
-    set(gca,'YTick',[-10 -5 0 5 10]);
-    title(planner_name);
-    %mean_cost = mean(total_cost)
 end
-
 fnt_sz = 14;
 figure('Color',[1 1 1],'Position',[200 200 500 200]);
 if num_rep == 1
@@ -387,4 +351,3 @@ xlim([0,run_len]);
 ylim([-5,15]);
 set(gca,'YTick',[-5 0 5 10 15]);
 title(planner_name);
-

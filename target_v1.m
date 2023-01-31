@@ -30,11 +30,12 @@ classdef target_v1 < handle
 
         function move(this, t, pos_r)
             cur_x = this.x(t, 1:2)';
-            dist_vec = cur_x - pos_r(1:2, :);
+            dist_vec = cur_x - pos_r(:, 1:2)';
             [min_dist_sqr, min_idx] = min(dist_vec(1, :).^2 + dist_vec(2, :).^2);
             min_dist = sqrt(min_dist_sqr);
             % if robots are within certain range, enter escape mode.
-            if min_dist < 5
+            if min_dist < 0
+
                 this.state = 'escape';
                 this.v = this.initial_v * 2;
             else
@@ -69,7 +70,13 @@ classdef target_v1 < handle
                 elseif strcmp(this.type, 'triangular')
                     this.x(t+1, :) = this.x(t, :);
                 elseif strcmp(this.type, 'zigzag')
-                    
+
+                elseif strcmp(this.type, 'vertical')
+                    this.x(t+1, 1) = this.x(t, 1);
+                    this.x(t+1, 2) = this.x(t, 2) + this.v;
+                elseif strcmp(this.type, 'horizontal')
+                    this.x(t+1, 1) = this.x(t, 1) + this.v;
+                    this.x(t+1, 2) = this.x(t, 2);
                 else
                     error('unseen type.')
                 end

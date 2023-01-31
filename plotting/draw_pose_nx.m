@@ -5,7 +5,7 @@ function h = draw_pose_nx(h,x,clr,size)
 % 
 
 if(nargin < 4)
-    size = 0.5;
+    size = 1;
 end
 if(nargin < 3)
     clr = 'g';

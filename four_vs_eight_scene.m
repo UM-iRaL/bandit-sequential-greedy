@@ -1,27 +1,13 @@
+%% four robots vs. eight target battle.
+
 clear all;
-close all;
+%close all;
 % Experiment parameters
 num_rep = 1;
 run_len = 1000;
-num_robot = 1;
-num_tg = 1;
+num_robot = 4;
+num_tg = 8;
 map_size = 100;
-
-rng(1,'philox');
-% Should we get video and image?
-vid = false;
-viz = true;
-%planner_name = 'bsg';
-planner_name = 'greedy';
-% planner_name = 'bsg';
-vid_name = strcat(strcat('video\dd_single_target_random_order_', planner_name),'_test.mp4');
-% mode = 'analysis';
-mode = 'experiment';
-if strcmp(mode, 'analysis')
-    num_rep = num_rep*3;
-    vid = false;
-    viz = false;
-end
 
 % Action set for robots
 % [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
@@ -37,21 +23,23 @@ vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'log
 vis_map_save = cell(run_len,num_rep);
 
 % Initial pose for robots
-
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
-x_true(1, 1, :, :) = repmat([30;0;0],1,num_rep);
-x_true(1, 2, :, :) = repmat([0; 30; pi/2],1,num_rep);
-x_true(1, 3, :, :) = repmat([-30; 0; pi],1,num_rep);
-x_true(1, 4, :, :) = repmat([0; -30; 3/2*pi],1,num_rep);
+x_true(1, 1, :, :) = repmat([-20;0;0],1,num_rep);
+x_true(1, 2, :, :) = repmat([0; -20; pi/2],1,num_rep);
+x_true(1, 3, :, :) = repmat([20; 0; pi],1,num_rep);
+x_true(1, 4, :, :) = repmat([0; 20; 3/2*pi],1,num_rep);
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([80;0;1],1,num_rep);
-
-% tg_true(:,2,1,:) = repmat([0;80;2],1,num_rep);
-% tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
-% tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
+tg_true(:,1,1,:) = repmat([70;0;1],1,num_rep);
+tg_true(:,2,1,:) = repmat([50;50;2],1,num_rep);
+tg_true(:,3,1,:) = repmat([0;70;3],1,num_rep);
+tg_true(:,4,1,:) = repmat([-50;50;4],1,num_rep);
+tg_true(:,5,1,:) = repmat([-70;0;5],1,num_rep);
+tg_true(:,6,1,:) = repmat([-50;-50;6],1,num_rep);
+tg_true(:,7,1,:) = repmat([-0;-70;7],1,num_rep);
+tg_true(:,8,1,:) = repmat([50;-50;8],1,num_rep);
 
 
 % Measurement History Data
@@ -65,33 +53,32 @@ all_tg_cov = zeros(2*num_tg, 2*num_tg, run_len, num_rep);
 obj_greedy = zeros(run_len, num_rep);
 
 
-
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'greedy';
-vid_name = strcat(strcat('video\four_targets_', planner_name),'_test.mp4');
+planner_name = 'bsg';
+vid_name = strcat(strcat('video\four_vs_eight_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
 
 for rep = 1:num_rep
     % Create Robots and Planners
     for r = 1:num_robot
-        R(r) = robot_nx(x_true(1, r, :, rep));
+        R(r) = robot_nx(x_true(1, r, :, rep), 100, deg2rad(94));
         P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
 
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
-        P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
-            R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
     end
-
     
-    T(1) = target_v1(1, 0.25, tg_true(:,1,1,rep), run_len, 'circle');
-%     T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
-%     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
-%     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
-
+    T(1) = target_v1(1, 0.15, tg_true(:,1,1,rep), run_len, 'circle');
+    T(2) = target_v1(2, 0.15, tg_true(:,2,1,rep), run_len, 'random');
+    T(3) = target_v1(3, 0.15, tg_true(:,3,1,rep), run_len, 'random');
+    T(4) = target_v1(4, 0.15, tg_true(:,4,1,rep), run_len, 'random');
+    T(5) = target_v1(5, 0.15, tg_true(:,5,1,rep), run_len, 'horizontal');
+    T(6) = target_v1(6, 0.15, tg_true(:,6,1,rep), run_len, 'rect');
+    T(7) = target_v1(7, 0.15, tg_true(:,7,1,rep), run_len, 'vertical');
+    T(8) = target_v1(8, 0.15, tg_true(:,8,1,rep), run_len, 'random');
     % Visualization
     if viz
         figure('Color',[1 1 1],'Position',[100,277,1200,800]);
@@ -105,7 +92,7 @@ for rep = 1:num_rep
             h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),'g',2.2);
             h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
         end
-
+        %h0.xe = draw_traj_nx([],permute(x_save(1,:,:,rep),[1 3 2]),'r:');
         h0.tg_cov = [];
         h0.tg = [];
 
@@ -126,7 +113,6 @@ for rep = 1:num_rep
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
 
-
         % Move Targets and get targets' positions at t
         for kk = 1:num_tg
             T(kk).move(t, squeeze(x_true(t, :, :, rep)));
@@ -135,7 +121,6 @@ for rep = 1:num_rep
         % Plan Moves -> compute u_save(t, r, :, rep)
         % both BSG and Greedy only know targets' positions at t
         prev_robot_states = zeros(3, 0);
-
         for r = 1:num_robot
             if strcmp(planner_name, 'greedy')
                 if t > 1
@@ -221,13 +206,12 @@ for rep = 1:num_rep
                 end
             end
         end
-
+              
         % Log covariance
         estm_tg_cov_save{t, rep} = estm_tg_cov(:,:,detected);
         estm_tg_save{t, rep} = estm_tg(:, detected);
 
         % assign target with zeros obsevation with big covariance
-
 
         for kk = 1:num_tg
             if ~detected(kk)
@@ -277,7 +261,7 @@ for rep = 1:num_rep
                 P(r).update_experts(t);
             end
         end
-
+       
         % Visualization
         if viz
             set(h0.viz,'cdata',vis_map.map.');
@@ -300,6 +284,7 @@ for rep = 1:num_rep
                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'r',2.2);
             end
             title(sprintf('Time Step: %d',t));
+           
             drawnow;
             %pause(0.125)
             if vid
@@ -311,68 +296,17 @@ for rep = 1:num_rep
     if viz && vid
         close(writerObj);
     end
-
 end
 
 % Plot Measurement
+repToShow = 1;
+total_cost = zeros(run_len, num_rep);
 
-if strcmp(mode, 'analysis')
-    total_cost_greedy = zeros(run_len, num_rep/3);
-    for rep = 1 : num_rep/3
-        for t = 1 : run_len
-            total_cost_greedy(t, rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
+for rep = 1 : num_rep
+    for t = 1 : run_len
+        total_cost(t, rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
     end
-    total_cost_bsg = zeros(run_len, num_rep/3);
-    for rep = num_rep/3+1 : 2/3*num_rep
-        for t = 1 : run_len
-            total_cost_bsg(t, rep-1/3*num_rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
-    end
-    total_cost_random = zeros(run_len, num_rep/3);
-    for rep = 2/3*num_rep+1 : num_rep
-        for t = 1 : run_len
-            total_cost_random(t, rep-2/3*num_rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
-    end
-    fnt_sz = 10;
-    figure('Color',[1 1 1],'Position',[200 200 500 200]);
-    %plot(1:run_len,mean(total_cost, 2),'b-','linewidth',2);
-    shadedErrorBar(1:t, mean(total_cost_greedy', 1), std(total_cost_greedy'), 'lineprops','g')
-    shadedErrorBar(1:t, mean(total_cost_bsg', 1), std(total_cost_bsg'), 'lineprops','b')
-    shadedErrorBar(1:t, mean(total_cost_random', 1), std(total_cost_random'), 'lineprops','r')
-    ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
-    xlabel('Time Steps','FontSize',fnt_sz);
-    set(gca,'fontsize',fnt_sz);
-    xlim([0,run_len]);
-    ylim([-10,10]);
-    set(gca,'YTick',[-10 -5 0 5 10]);
-else
-    repToShow = 1;
-    total_cost = zeros(run_len, num_rep);
-    for rep = 1 : num_rep
-        for t = 1 : run_len
-            total_cost(t, rep) = gaussian_entropy_nx(all_tg_cov(:,:, t, rep));
-        end
-    end
-
-    fnt_sz = 10;
-    figure('Color',[1 1 1],'Position',[200 200 500 200]);
-    if num_rep == 1
-        plot(1:run_len,mean(total_cost, 2),'b-','linewidth',2);
-    else
-        shadedErrorBar(1:t, mean(total_cost', 1), std(total_cost'), 'lineprops','g')
-    end
-    ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
-    xlabel('Time Steps','FontSize',fnt_sz);
-    set(gca,'fontsize',fnt_sz);
-    xlim([0,run_len]);
-    ylim([-10,10]);
-    set(gca,'YTick',[-10 -5 0 5 10]);
-    title(planner_name);
-    %mean_cost = mean(total_cost)
 end
-
 fnt_sz = 14;
 figure('Color',[1 1 1],'Position',[200 200 500 200]);
 if num_rep == 1
@@ -384,7 +318,6 @@ ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
 xlabel('Time Steps','FontSize',fnt_sz);
 set(gca,'fontsize',fnt_sz);
 xlim([0,run_len]);
-ylim([-5,15]);
-set(gca,'YTick',[-5 0 5 10 15]);
+ylim([-5,45]);
+set(gca,'YTick',[-5 0 5 10 15 20 25 30 35 40 45]);
 title(planner_name);
-

@@ -1,4 +1,4 @@
-function h = draw_fov_nx(h,x,fov,range)
+function h = draw_fov_nx(h,x,fov,range, clr)
 %
 % x = 3 x 1
 % h = draw_fov_nx(h,x,fov,range)
@@ -21,12 +21,14 @@ lin2_y = x(2) + b*range*sin(x(3)+a(end));
 pts = [lin1_x(:), lin1_y(:);
        cir_x(:),  cir_y(:);
        lin2_x(:), lin2_y(:)];
-   
+
 if(isempty(h))
-    h = plot(pts(:,1),pts(:,2),'r.');
+    if nargin > 4
+        h = plot(pts(:,1),pts(:,2),strcat(clr, '.'));
+    else
+        h = plot(pts(:,1),pts(:,2),'r.');
+    end
 else
     set(h,'xdata',pts(:,1),'ydata',pts(:,2));
 end
-
-
 end

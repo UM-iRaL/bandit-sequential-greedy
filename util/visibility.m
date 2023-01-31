@@ -9,7 +9,7 @@ function valid = visibility(x, y, r_sense, fov)
     % valid: if true, target at y is being detected by robot whose pose is x.
 
     if size(x, 1) ~= 3 || size(y, 1) ~= 2 
-        error('dimension are wrong');
+        error('dimensions mismatch');
     end
 
     range = norm(x(1:2) - y);
