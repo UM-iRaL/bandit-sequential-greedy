@@ -10,8 +10,8 @@ classdef target_v1 < handle
         n_time_step;
         state;
         target_id;
+        radius;
     end
-
     methods
         function this = target_v1(target_id,initial_v,x,n_time_step, type)
             % Initialization
@@ -27,7 +27,9 @@ classdef target_v1 < handle
             this.n_time_step = n_time_step;
             this.state = 'regular';
         end
-
+        function set_type(this, type)
+            this.type = type;
+        end
         function move(this, t, pos_r)
             cur_x = this.x(t, 1:2)';
             dist_vec = cur_x - pos_r(:, 1:2)';

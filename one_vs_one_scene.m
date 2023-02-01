@@ -1,4 +1,4 @@
-%% single robot vs. single target battle.
+%% non-adversarial single robot vs. single target battle.
 
 clear all;
 close all;

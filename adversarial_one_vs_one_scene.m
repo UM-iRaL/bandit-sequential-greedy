@@ -1,13 +1,15 @@
-%% four robots vs. eight target battle.
+%% adversarial single robot vs. single target battle.
 
 clear all;
-%close all;
+close all;
 % Experiment parameters
 num_rep = 1;
 run_len = 1000;
-num_robot = 4;
-num_tg = 8;
+num_robot = 1;
+num_tg = 1;
 map_size = 100;
+
+rng(1,'philox');
 
 % Action set for robots
 % [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
@@ -15,7 +17,9 @@ map_size = 100;
 % ACTION_SET = normalize(ACTION_SET, 1, "norm");
 % ACTION_SET(isnan(ACTION_SET)) = 0;
 directions = [0:3] * pi/2;
-ACTION_SET = [cos(directions); sin(directions)];
+v_robot = 0.5;
+v_tg = 0.3; 
+ACTION_SET = v_robot * [cos(directions); sin(directions)];
 
 % Visibility map
 vis_map = init_blank_ndmap([-map_size; -map_size],[map_size; map_size],0.25,'logical');
@@ -24,22 +28,16 @@ vis_map_save = cell(run_len,num_rep);
 
 % Initial pose for robots
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
-x_true(1, 1, :, :) = repmat([-20;0;0],1,num_rep);
-x_true(1, 2, :, :) = repmat([0; -20; pi/2],1,num_rep);
-x_true(1, 3, :, :) = repmat([20; 0; pi],1,num_rep);
-x_true(1, 4, :, :) = repmat([0; 20; 3/2*pi],1,num_rep);
+x_true(1, 1, :, :) = repmat([30;0;0],1,num_rep);
+
 
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([70;0;1],1,num_rep);
-tg_true(:,2,1,:) = repmat([50;50;2],1,num_rep);
-tg_true(:,3,1,:) = repmat([0;70;3],1,num_rep);
-tg_true(:,4,1,:) = repmat([-50;50;4],1,num_rep);
-tg_true(:,5,1,:) = repmat([-70;0;5],1,num_rep);
-tg_true(:,6,1,:) = repmat([-50;-50;6],1,num_rep);
-tg_true(:,7,1,:) = repmat([-0;-70;7],1,num_rep);
-tg_true(:,8,1,:) = repmat([50;-50;8],1,num_rep);
+tg_true(:,1,1,:) = repmat([80;0;1],1,num_rep);
+% tg_true(:,2,1,:) = repmat([0;80;2],1,num_rep);
+% tg_true(:,3,1,:) = repmat([-80;0;3],1,num_rep);
+% tg_true(:,4,1,:) = repmat([0;-80;4],1,num_rep);
 
 
 % Measurement History Data
@@ -56,14 +54,14 @@ obj_greedy = zeros(run_len, num_rep);
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'bsg';
-vid_name = strcat(strcat('video\four_vs_eight_', planner_name),'_test.mp4');
+planner_name = 'greedy';
+vid_name = strcat(strcat('video\one_vs_one_', planner_name),'_test.mp4');
 % planner_name = 'bsg';
 
 for rep = 1:num_rep
     % Create Robots and Planners
     for r = 1:num_robot
-        R(r) = robot_nx(x_true(1, r, :, rep), 100, deg2rad(94));
+        R(r) = robot_nx(x_true(1, r, :, rep),100, deg2rad(94));
         P(r) = bsg_planner_nx_v1(num_robot,r, ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
 
@@ -71,14 +69,10 @@ for rep = 1:num_rep
             R(r).fov);
     end
     
-    T(1) = target_v1(1, 0.15, tg_true(:,1,1,rep), run_len, 'circle');
-    T(2) = target_v1(2, 0.15, tg_true(:,2,1,rep), run_len, 'random');
-    T(3) = target_v1(3, 0.15, tg_true(:,3,1,rep), run_len, 'random');
-    T(4) = target_v1(4, 0.15, tg_true(:,4,1,rep), run_len, 'random');
-    T(5) = target_v1(5, 0.15, tg_true(:,5,1,rep), run_len, 'horizontal');
-    T(6) = target_v1(6, 0.15, tg_true(:,6,1,rep), run_len, 'rect');
-    T(7) = target_v1(7, 0.15, tg_true(:,7,1,rep), run_len, 'vertical');
-    T(8) = target_v1(8, 0.15, tg_true(:,8,1,rep), run_len, 'random');
+    T(1) = adversarial_target_v1(1, v_tg, tg_true(:,1,1,rep), run_len, 'circle');
+%     T(2) = target_v1(2, 0.5, tg_true(:,2,1,rep), run_len, 'random');
+%     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
+%     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
         figure('Color',[1 1 1],'Position',[100,277,1200,800]);
@@ -112,11 +106,12 @@ for rep = 1:num_rep
 
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
-
         % Move Targets and get targets' positions at t
-        for kk = 1:num_tg
-            T(kk).move(t, squeeze(x_true(t, :, :, rep)));
-            tg_true(:, kk, t+1, rep) = T(kk).get_x(t+1)';
+        if t > 1
+            for kk = 1:num_tg
+                T(kk).move(t-1, squeeze(x_true(t-1, :, :, rep)));
+                tg_true(:, kk, t, rep) = T(kk).get_x(t)';
+            end
         end
         % Plan Moves -> compute u_save(t, r, :, rep)
         % both BSG and Greedy only know targets' positions at t
@@ -129,10 +124,6 @@ for rep = 1:num_rep
                     % after Greedy selects actions
                     % TODO: for Greedy, we need to let targets move after Greedy selects actions
                     [next_action_idx, next_state] = G(r).greedy_action(t, squeeze(x_true(t-1, r, :, rep)), estm_tg_save{t-1, rep}, prev_robot_states, R(r).r_sense, R(r).fov);
-
-                    % move robot
-%                     R(r).set_x(next_state);
-%                     x_true(t,r,:,rep) = next_state;
 
                     % prepare for planning for next robot
                     prev_robot_states = [prev_robot_states next_state];
@@ -226,7 +217,7 @@ for rep = 1:num_rep
         % positions at t (planned at t-1) and the environment at t
         % only detected targets can be considered.
         if strcmp(planner_name, 'greedy')
-            obj_greedy(t, rep) = objective_function(squeeze(x_true(t, :, :, rep))', tg_true(1:2, detected, t, rep), R(1).r_sense, R(1).fov);
+            %obj_greedy(t, rep) = objective_function(squeeze(x_true(t, :, :, rep))', tg_true(1:2, detected, t, rep), R(1).r_sense, R(1).fov);
         end
 
                 
@@ -281,7 +272,12 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'r',2.2);
+                if strcmp(T(kk).state, 'escape')
+                    tg_clr = 'b';
+                else
+                    tg_clr = 'r';
+                end
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep), tg_clr, 2.2);
             end
             title(sprintf('Time Step: %d',t));
            
@@ -318,6 +314,6 @@ ylabel({'Target Entropy [nats]'},'FontSize',fnt_sz);
 xlabel('Time Steps','FontSize',fnt_sz);
 set(gca,'fontsize',fnt_sz);
 xlim([0,run_len]);
-ylim([-5,45]);
-set(gca,'YTick',[-5 0 5 10 15 20 25 30 35 40 45]);
+ylim([-5,15]);
+set(gca,'YTick',[-5 0 5 10 15]);
 title(planner_name);

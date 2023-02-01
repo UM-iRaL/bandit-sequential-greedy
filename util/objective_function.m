@@ -1,6 +1,8 @@
-function obj_sum = objective_function(robot_states, target_states, r_sense, fov)
+function obj_sum = objective_function(robot_states, target_states, r_senses, fovs)
 % param robot_states: 3 x num_rob
 % param target_states: 2 x num_tar
+% param r_senses: 1 x num_rob
+% param fovs: 1 x num_rob
 % return obj: objective function
 
     num_tar = size(target_states, 2);
@@ -14,10 +16,11 @@ function obj_sum = objective_function(robot_states, target_states, r_sense, fov)
             for j = 1:num_rob            
                 % check if robot j can see this target
                 robot_state = robot_states(:, j);    
-                if visibility(robot_state, target_state, r_sense, fov)
+                if visibility(robot_state, target_state, r_senses(j), fovs(j))
+                %if true
                     % target i is observed by robot j
                     d = norm(robot_state(1:2) - target_state);
-                    obj(i) = obj(i) - 1 / (d^(2)+3);
+                    obj(i) = obj(i) - 1 / ((d-5)^(2)+3);
 
 %                     obj(i) = obj(i) * 1 / (d+1);
                     %obj(i) = obj(i) - d;

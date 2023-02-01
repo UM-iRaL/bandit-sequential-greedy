@@ -25,7 +25,7 @@ classdef greedy_planner_v2 < handle
         function [greedy_action_idx, greedy_next_state] = greedy_action(this, t, x, y, prev_robot_states, r_sense, fov)
             % this function selects the next action using Greedy
             % x: this robot's state, 3 x 1
-            % y: all targets' states, 2 x num_tg
+            % y: all targets' states, 2 x num_tg            
             % output: action for t+1
             
             % for each robot

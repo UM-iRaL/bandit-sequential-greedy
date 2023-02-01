@@ -20,6 +20,7 @@ yvals = [x(2,:) + size*sin(x(3,:));x(2,:) + size*sin(x(3,:)+2.7);x(2,:) + size*s
 if isempty(h)
     h = patch(xvals,yvals,clr);
 else
+    %h = patch(xvals,yvals,clr);
     set(h,'xdata',xvals,'ydata',yvals);
 end
 end
