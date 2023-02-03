@@ -81,8 +81,8 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    
-    T(1) = target_v1(1, v_tg, tg_true(:,1,1,rep), run_len, 'circle', dT);
+    yaw_tg = [deg2rad(90)];
+    T(1) = target_v1(1, v_tg, tg_true(:,1,1,rep), yaw_tg, run_len, 'circle', dT);
     % Visualization
     if viz
         figure('Color',[1 1 1],'Position',[100,277,1200,800]);

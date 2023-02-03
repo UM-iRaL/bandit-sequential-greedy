@@ -118,7 +118,8 @@ for rep = 1:num_rep
         h0.tg = [];
         h0.ye = [];
         for kk = 1:num_tg
-            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
+%             h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
+            h0.tg(kk) = draw_pose_nx([], T(kk).get_pose(1)','g',5);
         end
         title(sprintf('Time Step: %d',0));
         xlabel('x [m]','FontSize',14);
@@ -334,7 +335,8 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
+%                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',5);
             end
             title(sprintf('Time Step: %d',t));
             %{

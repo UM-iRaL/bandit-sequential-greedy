@@ -8,10 +8,10 @@ viz = true;
 planner_name = 'bsg';
 vid_name = strcat(strcat('video\two_vs_three_', planner_name),'_test.mp4');
 % mode = 'analysis';
-mode = 'analysis';
+mode = 'experiment';
 % Experiment parameters
 Horizon = 100;
-num_rep = 100;
+num_rep = 10;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -88,9 +88,10 @@ for rep = 1:num_rep
             R(r).fov);
     end
     v_tg = [0.35; 0.5; 0.72]*1/dT;
-    T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep), run_len, 'horizontal',dT);
-    T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep), run_len, 'vertical',dT);
-    T(3) = target_v1(3, v_tg(3), tg_true(:,3,1,rep), run_len, 'circle',dT);
+    yaw_tg = [0; deg2rad(90); deg2rad(-90)];
+    T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep),yaw_tg(1), run_len, 'straight',dT);
+    T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep),yaw_tg(2), run_len, 'straight',dT);
+    T(3) = target_v1(3, v_tg(3), tg_true(:,3,1,rep),yaw_tg(3), run_len, 'circle',dT);
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
@@ -138,8 +139,8 @@ for rep = 1:num_rep
             end
         end
         if t == 490
-            
-            T(3).set_type('vertical');
+            T(3).set_yaw(t-1, deg2rad(90))
+            T(3).set_type('straight');
         end
         % Move Targets and get targets' positions at t
         if t > 1
