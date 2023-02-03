@@ -12,7 +12,7 @@ mode = 'experiment';
 
 % Experiment parameters
 Horizon = 100;
-num_rep = 5;
+num_rep = 1;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -29,7 +29,7 @@ directions = [0:5] * pi/3;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
-vis_map = init_blank_ndmap([-map_size*3; -map_size*3],[map_size*3; map_size*3],0.25,'logical');
+vis_map = init_blank_ndmap([-100; -100],[450; 450],0.25,'logical');
 %vis_map.map = ~vis_map.map;
 vis_map_save = cell(run_len,num_rep);
 
@@ -75,7 +75,7 @@ for rep = 1:num_rep
         end
     end
     % Create Robots and Planners
-    v_robot = [1.3; 1.1]*1/dT;
+    v_robot = [1.3; 1.1]*0.5/dT;
     for r = 1:num_robot
         if r == 1
             R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(64), dT);
@@ -89,7 +89,7 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    v_tg = [0.6;0.6;0.35;0.35]*1/dT;
+    v_tg = [0.6;0.6;0.35;0.35]*0.5/dT;
     yaw_tg = [deg2rad(55);deg2rad(45);deg2rad(35);deg2rad(45)];
     T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep), yaw_tg(1), run_len, 'straight', dT);
     T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep), yaw_tg(2), run_len, 'straight', dT);
@@ -98,13 +98,13 @@ for rep = 1:num_rep
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[0,0,1000,1000]);
+        figure('Color',[1 1 1],'Position',[0,0, 450, 400]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
         cbone = bone; colormap(cbone(end:-1:(end-30),:));
               
-        axis([-3*map_size,3*map_size,-3*map_size,3*map_size]);
+        axis([-100,450, -100, 450])
         for r = 1:num_robot
             if r == 1
                 r_color = 'b';
@@ -121,9 +121,12 @@ for rep = 1:num_rep
         for kk = 1:num_tg
             h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
         end
-        title(sprintf('Time Step: %d',0));
-        xlabel('x [m]','FontSize',14);
-        ylabel('y [m]','FontSize',14);
+%         title(sprintf('Time Step: %d',0));
+        title(sprintf('2 Robots, 4 Targets'));
+        xlabel('x','FontSize',14);
+        ylabel('y','FontSize',14);
+        grid on;
+        set(gca,'XTickLabel',[],'YTickLabel',[]);
         drawnow;
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
@@ -148,6 +151,10 @@ for rep = 1:num_rep
         if t == 800
             T(3).set_yaw(t-1, deg2rad(0));
             T(4).set_yaw(t-1, deg2rad(0));
+        end
+        if t == 1200
+            T(1).set_yaw(t-1, deg2rad(0));
+            T(2).set_yaw(t-1, deg2rad(0));
         end
         % Move Targets and get targets' positions at t
         if t > 1
@@ -330,10 +337,10 @@ for rep = 1:num_rep
                     r_color = 'r';   
                 end
                 h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,1:2,rep),[1 3 2 4]),strcat(r_color, '-'));
-                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,5);
-                h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
-
+                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,15);
+                h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);                
             end
+
             tmp = estm_tg_save{t, rep};
             if ~isempty(tmp)
                 %tmp
@@ -343,9 +350,12 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',15);
             end
-            title(sprintf('Time Step: %d',t));
+            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northwest');
+%             title(sprintf('Time: %ds, Time Step: %d', Horizon, t));
+            title(sprintf('2 Robots, 4 Targets'));
+            exportgraphics(gca,'figures/traj_2v4_non.png','BackgroundColor','none','ContentType','image')
             %{
             if ~isempty(att)
                 att = [att; 5*ones(1, size(att,2))];

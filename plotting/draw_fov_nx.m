@@ -24,11 +24,11 @@ pts = [lin1_x(:), lin1_y(:);
 
 if(isempty(h))
     if nargin > 4
-        h = plot(pts(:,1),pts(:,2),strcat(clr, '.'));
+        h = plot(pts(:,1),pts(:,2),strcat(clr, '.'), 'LineWidth',0.1);
     else
-        h = plot(pts(:,1),pts(:,2),'r.');
+        h = plot(pts(:,1),pts(:,2),'r.','LineWidth',0.1);
     end
 else
-    set(h,'xdata',pts(:,1),'ydata',pts(:,2));
+    set(h,'xdata',pts(:,1),'ydata',pts(:,2),'LineWidth',0.02);
 end
 end
