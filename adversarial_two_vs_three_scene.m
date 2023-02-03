@@ -7,12 +7,12 @@ vid = false;
 viz = true;
 planner_name = 'bsg';
 vid_name = strcat(strcat('video\adversarial_two_vs_three_', planner_name),'_test.mp4');
-% mode = 'analysis';
-mode = 'experiment';
+mode = 'analysis';
+% mode = 'experiment';
 
 % Experiment parameters
 Horizon = 100;
-num_rep = 10;
+num_rep = 4;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -312,7 +312,7 @@ for rep = 1:num_rep
         if viz
             set(h0.viz,'cdata',vis_map.map.');
 
-            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'g:');
+            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'g--');
 
             for r = 1:num_robot
                 if r == 1
@@ -320,9 +320,10 @@ for rep = 1:num_rep
                 elseif r == 2
                     r_color = 'r';   
                 end
+                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,1:2,rep),[1 3 2 4]),strcat(r_color, '-'));
                 h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,5);
                 h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
-                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,:,rep),[1 3 2 4]),strcat(r_color, ':'));
+
             end
             tmp = estm_tg_save{t, rep};
             if ~isempty(tmp)
@@ -364,7 +365,7 @@ end
 
 % Plot Measurement
 if strcmp(mode, 'analysis')
-    if num_rep <= 4
+    if num_rep < 4
         error('not enough reps!');
     end
     % Plot Measurement
@@ -444,6 +445,6 @@ if strcmp(mode, 'analysis')
 
     h5 = shadedErrorBar(dT*[1:t], mean(dist_bsg', 1), std(dist_bsg'), 'lineprops',{'Color',"#0072BD", 'LineWidth', 1});
     h6 = shadedErrorBar(dT*[1:t], mean(dist_greedy', 1), std(dist_greedy'), 'lineprops',{'Color',"#D95319", 'LineWidth', 1});
-    
+    ylabel({'Sum of Distance to Nearest Robot'},'FontSize',fnt_sz);
     %title(planner_name);
 end

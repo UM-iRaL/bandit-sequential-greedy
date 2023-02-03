@@ -31,23 +31,25 @@ classdef target_v1 < handle
             this.dT = dT;
             this.all_min_dist = zeros(n_time_step, 1);
         end
+        function min_dist = min_dist_to_robots(this, t, pos_r)
+            if size(pos_r, 2) ~= 3
+                error('dimensions mismatch');
+            end
+            cur_x = this.x(t, 1:2)';
+            dist_vec = cur_x - pos_r(:, 1:2)';
+            [min_dist_sqr, ~] = min(dist_vec(1, :).^2 + dist_vec(2, :).^2);
+            min_dist = sqrt(min_dist_sqr);
+        end
         function set_type(this, type)
             this.type = type;
         end
         function move(this, t, pos_r)
             %Input:
             %       pos_r: num_robot x 3
-            if size(pos_r, 2) ~= 3
-                error('dimensions mismatch');
-            end
-            cur_x = this.x(t, 1:2)';
-            dist_vec = cur_x - pos_r(:, 1:2)';            
-            [min_dist_sqr, min_idx] = min(dist_vec(1, :).^2 + dist_vec(2, :).^2);
-            min_dist = sqrt(min_dist_sqr);
+            min_dist = this.min_dist_to_robots(t, pos_r);
             this.all_min_dist(t) = min_dist;
             % if robots are within certain range, enter escape mode.
             if min_dist < 0
-
                 this.state = 'escape';
                 this.v = this.initial_v * 2;
             else

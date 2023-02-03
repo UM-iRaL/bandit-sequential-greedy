@@ -1,6 +1,14 @@
 %% non-adversarial single robot vs. single target battle.
 clear all;
 close all;
+% Should we get video and image?
+vid = false;
+viz = true;
+planner_name = 'bsg';
+vid_name = strcat(strcat('video\one_vs_one_', planner_name),'_test.mp4');
+mode = 'analysis';
+% mode = 'experiment';
+
 % Experiment parameters
 Horizon = 100;
 num_rep = 100;
@@ -49,14 +57,9 @@ estm_tg_save = cell(run_len,num_rep);
 estm_tg_cov_save = cell(run_len,num_rep);
 all_tg_cov = zeros(2*num_tg, 2*num_tg, run_len, num_rep);
 reward = zeros(num_robot, run_len, num_rep);
+min_dist = zeros(num_tg, run_len, num_rep);
 
-% Should we get video and image?
-vid = false;
-viz = true;
-planner_name = 'bsg';
-vid_name = strcat(strcat('video\one_vs_one_', planner_name),'_test.mp4');
-mode = 'analysis';
-% mode = 'experiment';
+
 % planner_name = 'bsg';
 
 for rep = 1:num_rep
@@ -120,9 +123,11 @@ for rep = 1:num_rep
             end
         end
         % Move Targets and get targets' positions at t
-        for kk = 1:num_tg
-            T(kk).move(t, reshape(squeeze(x_true(t, :, :, rep)), num_robot,[]));
-            tg_true(:, kk, t+1, rep) = T(kk).get_x(t+1)';
+        if t > 1
+            for kk = 1:num_tg
+                T(kk).move(t-1, reshape(squeeze(x_true(t-1, :, :, rep)), num_robot,[]));
+                tg_true(:, kk, t, rep) = T(kk).get_position(t)';
+            end
         end
         % Plan Moves -> compute u_save(t, r, :, rep)
         % both BSG and Greedy only know targets' positions at t
@@ -311,6 +316,12 @@ for rep = 1:num_rep
             end
         end
     end
+    for kk = 1:num_tg
+        %min_dist(kk, 1:end-1, rep) = T(kk).all_min_dist(:)';
+        for t = 1:run_len
+            min_dist(kk, t, rep) = T(kk).min_dist_to_robots(t, squeeze(x_true(t,:,:,rep)));
+        end
+    end
     if viz && vid
         close(writerObj);
     end
@@ -379,4 +390,22 @@ if strcmp(mode, 'analysis')
     xlim([0,run_len*dT]);
     ylim([-Inf, 0]);
     %title(planner_name);
+
+
+    dist_bsg = zeros(run_len, num_rep/2);
+    dist_greedy = zeros(run_len, num_rep/2);
+    for rep = 1 : num_rep
+        for t = 1 : run_len
+            if rep <= num_rep/2
+                dist_bsg(t, rep) = sum(min_dist(:,t, rep));
+            else
+                dist_greedy(t, rep - num_rep/2) = sum(min_dist(:,t, rep));
+            end
+        end
+    end
+    figure('Color',[1 1 1],'Position',[1200 200 500 200]);
+
+    h5 = shadedErrorBar(dT*[1:t], mean(dist_bsg', 1), std(dist_bsg'), 'lineprops',{'Color',"#0072BD", 'LineWidth', 1});
+    h6 = shadedErrorBar(dT*[1:t], mean(dist_greedy', 1), std(dist_greedy'), 'lineprops',{'Color',"#D95319", 'LineWidth', 1});
+    
 end
