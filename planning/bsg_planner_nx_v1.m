@@ -36,8 +36,8 @@ classdef bsg_planner_nx_v1 < handle
 
             this.selected_action_index = ones(n_time_step, 1);
             %learning_const = 2; % non-adversarial 2v2
-%             learning_const = 1; % non-adversarial 2v3
-            learning_const = 4; % adversarial 2v2
+             learning_const = 1; % non-adversarial 2v3
+            %learning_const = 4; % adversarial 2v2
 
             this.J = ceil(log(n_time_step));
             this.e = learning_const*sqrt(log(this.J) / 2 / n_time_step);

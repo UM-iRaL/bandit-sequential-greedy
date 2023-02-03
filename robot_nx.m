@@ -1,7 +1,6 @@
 classdef robot_nx < handle
     properties (Constant = true)
         % Vehicle
-        T = 1;            % sampling period
         %stdev_v = 0.1;     % motion noise
         %stdev_w = deg2rad(5);
         
@@ -45,18 +44,18 @@ classdef robot_nx < handle
     properties (SetAccess = protected, GetAccess = protected)
         x = [0;0;0];    % robot pose
 
-
-        
     end
     properties (SetAccess = protected, GetAccess = public)
         params;     
         % Sensor
         fov = deg2rad(94); %deg2rad(94);     % deg2rad(124);
         r_sense = 45;          % meter
+        T = 1;            % sampling period
+      
     end
     
     methods
-        function obj = robot_nx(x0, r_sense, fov)
+        function obj = robot_nx(x0, r_sense, fov, dT)
             if(nargin < 1)
                 x0 = [0;0;0];
             end
@@ -74,6 +73,8 @@ classdef robot_nx < handle
                 obj.params.fov = fov;
                 obj.r_sense = r_sense;
                 obj.fov = fov;
+                obj.T = dT;
+                obj.params.T = dT;
             end
             obj.params.b_sigma = obj.b_sigma;
             obj.params.r_sigma = obj.r_sigma;

@@ -11,9 +11,11 @@ classdef target_v1 < handle
         state;
         target_id;
         radius;
+        dT;
+        all_min_dist;
     end
     methods
-        function this = target_v1(target_id,initial_v,x,n_time_step, type)
+        function this = target_v1(target_id,initial_v,x,n_time_step, type, dT)
             % Initialization
             % x->1 x 3 (x, y, id)   
             this.target_id = target_id;
@@ -26,15 +28,23 @@ classdef target_v1 < handle
             this.type = type;
             this.n_time_step = n_time_step;
             this.state = 'regular';
+            this.dT = dT;
+            this.all_min_dist = zeros(n_time_step, 1);
         end
         function set_type(this, type)
             this.type = type;
         end
         function move(this, t, pos_r)
+            %Input:
+            %       pos_r: num_robot x 3
+            if size(pos_r, 2) ~= 3
+                error('dimensions mismatch');
+            end
             cur_x = this.x(t, 1:2)';
-            dist_vec = cur_x - pos_r(:, 1:2)';
+            dist_vec = cur_x - pos_r(:, 1:2)';            
             [min_dist_sqr, min_idx] = min(dist_vec(1, :).^2 + dist_vec(2, :).^2);
             min_dist = sqrt(min_dist_sqr);
+            this.all_min_dist(t) = min_dist;
             % if robots are within certain range, enter escape mode.
             if min_dist < 0
 
@@ -48,36 +58,36 @@ classdef target_v1 < handle
                 if strcmp(this.type,'circle')
                     ang_v = this.v/80;
                     gamma = pi/2 * (this.target_id-1);
-                    this.x(t+1, 1) = this.x(t, 1) - this.v * sin(gamma + ang_v*t); %do notihing.
-                    this.x(t+1, 2) = this.x(t, 2) + this.v * cos(gamma + ang_v*t);
+                    this.x(t+1, 1) = this.x(t, 1) - this.v*this.dT * sin(gamma + ang_v*this.dT*t); %do notihing.
+                    this.x(t+1, 2) = this.x(t, 2) + this.v*this.dT * cos(gamma + ang_v*this.dT*t);
                 elseif strcmp(this.type, 'rect')
                     rep = 10;
                     one_rep_time = this.n_time_step / rep;
                     if mod(t, one_rep_time) < one_rep_time / 4
-                        this.x(t+1, 1) = this.x(t, 1) + this.v;
+                        this.x(t+1, 1) = this.x(t, 1) + this.v*this.dT;
                         this.x(t+1, 2) = this.x(t, 2);
                     elseif mod(t, one_rep_time) >= one_rep_time / 4 && mod(t, one_rep_time) < one_rep_time / 2
                         this.x(t+1, 1) = this.x(t, 1);
-                        this.x(t+1, 2) = this.x(t, 2) + this.v;
+                        this.x(t+1, 2) = this.x(t, 2) + this.v*this.dT;
                     elseif mod(t, one_rep_time) >= one_rep_time / 2 && mod(t, one_rep_time) < 3/4 * one_rep_time
-                        this.x(t+1, 1) = this.x(t, 1) - this.v;
+                        this.x(t+1, 1) = this.x(t, 1) - this.v*this.dT;
                         this.x(t+1, 2) = this.x(t, 2);
                     else
                         this.x(t+1, 1) = this.x(t, 1);
-                        this.x(t+1, 2) = this.x(t, 2) - this.v;
+                        this.x(t+1, 2) = this.x(t, 2) - this.v*this.dT;
                     end
                 elseif strcmp(this.type, 'random')
                     theta = rand*2*pi;
-                    this.x(t+1, 1:2) = this.x(t, 1:2) + rand*this.v*[cos(theta) sin(theta)];
+                    this.x(t+1, 1:2) = this.x(t, 1:2) + rand*this.v*this.dT*[cos(theta) sin(theta)];
                 elseif strcmp(this.type, 'triangular')
                     this.x(t+1, :) = this.x(t, :);
                 elseif strcmp(this.type, 'zigzag')
 
                 elseif strcmp(this.type, 'vertical')
                     this.x(t+1, 1) = this.x(t, 1);
-                    this.x(t+1, 2) = this.x(t, 2) + this.v;
+                    this.x(t+1, 2) = this.x(t, 2) + this.v*this.dT;
                 elseif strcmp(this.type, 'horizontal')
-                    this.x(t+1, 1) = this.x(t, 1) + this.v;
+                    this.x(t+1, 1) = this.x(t, 1) + this.v*this.dT;
                     this.x(t+1, 2) = this.x(t, 2);
                 else
                     error('unseen type.')

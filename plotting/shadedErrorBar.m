@@ -75,7 +75,7 @@ params = inputParser;
 params.CaseSensitive = false;
 params.addParameter('lineProps', '-k', @(x) ischar(x) | iscell(x));
 params.addParameter('transparent', true, @(x) islogical(x) || x==0 || x==1);
-params.addParameter('patchSaturation', 0.2, @(x) isnumeric(x) && x>=0 && x<=1);
+params.addParameter('patchSaturation', 0.3, @(x) isnumeric(x) && x>=0 && x<=1);
 
 params.parse(varargin{:});
 
@@ -185,8 +185,8 @@ function H = makePlot(x,y,errBar,lineProps,transparent,patchSaturation)
 
 
     %Make pretty edges around the patch. 
-    H.edge(1)=plot(x,lE,'-','color',edgeColor);
-    H.edge(2)=plot(x,uE,'-','color',edgeColor);
+%     H.edge(1)=plot(x,lE,'-','color',edgeColor);
+%     H.edge(2)=plot(x,uE,'-','color',edgeColor);
 
 
 
