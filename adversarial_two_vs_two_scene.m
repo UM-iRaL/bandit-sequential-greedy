@@ -5,13 +5,14 @@ close all;
 % Should we get video and image?
 vid = false;
 viz = true;
+draw = false;
 planner_name = 'bsg';
 vid_name = strcat(strcat('video\adversarial_heter_two_vs_two_', planner_name),'_test.mp4');
-mode = 'analysis';
-% mode = 'experiment';
+% mode = 'analysis';
+mode = 'experiment';
 % Experiment parameters
 Horizon = 100;
-num_rep = 50;
+num_rep = 10;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -93,7 +94,7 @@ for rep = 1:num_rep
 
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[0,0,1000,500]);
+        figure('Color',[1 1 1],'Position',[0,0,450,400]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
@@ -308,9 +309,9 @@ for rep = 1:num_rep
                 elseif r == 2
                     r_color = 'r';   
                 end
-                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,5);
-                h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
-                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,:,rep),[1 3 2 4]),strcat(r_color, ':'));
+                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,1:2,rep),[1 3 2 4]),strcat(r_color, '-'));
+                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,15);
+                h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);  
             end
             tmp = estm_tg_save{t, rep};
             if ~isempty(tmp)
@@ -324,14 +325,29 @@ for rep = 1:num_rep
 %                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',5);
             end
-            title(sprintf('Time Step: %d',t));
-            %{
-            if ~isempty(att)
-                att = [att; 5*ones(1, size(att,2))];
+            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+%             title(sprintf('Time: %ds, Time Step: %d', Horizon, t));
+            axis([-400, 400,-400, 400]);
+            if rep == 1 % 7 bsg 1 greedy
+                draw = true;
+            else
+                draw = false;
             end
-            delete(h0.ye);
-            h0.ye = drawEnv(att',1);
-            %}
+            xlabel('x','FontSize',14);
+            ylabel('y','FontSize',14);
+%             grid on;
+            set(gca,'XTickLabel',[],'YTickLabel',[]);
+            if draw
+                if strcmp(planner_name, 'bsg')
+                    title(sprintf('BSG: 2 Robots, 2 Adversarial Targets'));
+                    savefig('figures/traj_2v2_BSG.fig');
+                    exportgraphics(gca,'figures/traj_2v2_BSG.png','BackgroundColor','none','ContentType','image');
+                else
+                    title(sprintf('Greedy: 2 Robots, 2 Adversarial Targets'));
+                    savefig('figures/traj_2v2_Greedy.fig');
+                    exportgraphics(gca,'figures/traj_2v2_Greedy.png','BackgroundColor','none','ContentType','image');
+                end
+            end
             drawnow;
             %pause(0.125)
             if vid
@@ -428,25 +444,11 @@ if strcmp(mode, 'analysis')
 
     h5 = shadedErrorBar(dT*[1:t], mean(dist_bsg', 1), std(dist_bsg'), 'lineprops',{'Color',"#0072BD", 'LineWidth', 1});
     h6 = shadedErrorBar(dT*[1:t], mean(dist_greedy', 1), std(dist_greedy'), 'lineprops',{'Color',"#D95319", 'LineWidth', 1});
+    legend([h5.mainLine h6.mainLine], 'BSG', 'SG', 'location','northwest');
+    ylabel({'Sum of Minimum Distances'},'FontSize',fnt_sz);
+    xlabel('Time [s]','FontSize',fnt_sz);
+    title('BSG vs. Greedy', 'FontSize',fnt_sz);
+    savefig('figures/mean_cov_2v2.fig');
+    exportgraphics(gca,'figures/mean_cov_2v2.png','BackgroundColor','none','ContentType','image')
     %title(planner_name);
 end
-%{
-figure('Color', [1 1 1], 'Position', [700 200 500 200]);
-if strcmp(planner_name, 'bsg')
-    if num_rep == 1
-        plot(1:run_len,mean(obj_bsg, 2),'b-','linewidth',2);
-    else
-        shadedErrorBar(1:t, mean(obj_bsg', 1), std(total_cost'), 'lineprops','g')
-    end
-else
-    if num_rep == 1
-        plot(1:run_len,mean(obj_greedy, 2),'b-','linewidth',2);
-    else
-        shadedErrorBar(1:t, mean(obj_greedy', 1), std(total_cost'), 'lineprops','g')
-    end
-end
-ylabel({'Objective Function'},'FontSize',fnt_sz);
-set(gca,'fontsize',fnt_sz);
-xlim([0,run_len]);
-title(planner_name);
-%}

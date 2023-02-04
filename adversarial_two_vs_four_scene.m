@@ -4,15 +4,16 @@ close all;
 
 % Should we get video and image?
 vid = false;
-viz = false;
+viz = true;
+draw = false;
 planner_name = 'bsg';
 vid_name = strcat(strcat('video\adversarial_two_vs_four_', planner_name),'_test.mp4');
-mode = 'analysis';
-% mode = 'experiment';
+% mode = 'analysis';
+mode = 'experiment';
 
 % Experiment parameters
 Horizon = 100;
-num_rep = 50;
+num_rep = 100;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -29,7 +30,7 @@ directions = [0:5] * pi/3;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
-vis_map = init_blank_ndmap([-map_size*3; -map_size*3],[map_size*3; map_size*3],0.25,'logical');
+vis_map = init_blank_ndmap([-1300; -1300],[1300; 1300],0.25,'logical');
 %vis_map.map = ~vis_map.map;
 vis_map_save = cell(run_len,num_rep);
 
@@ -98,7 +99,7 @@ for rep = 1:num_rep
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[0,0,1000,1000]);
+        figure('Color',[1 1 1],'Position',[0,0,450,400]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
@@ -321,10 +322,11 @@ for rep = 1:num_rep
                 elseif r == 2
                     r_color = 'r';   
                 end
-                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,5);
-                h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
-                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,:,rep),[1 3 2 4]),strcat(r_color, ':'));
+                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,1:2,rep),[1 3 2 4]),strcat(r_color, '-'));
+                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,15);
+                h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);                
             end
+
             tmp = estm_tg_save{t, rep};
             if ~isempty(tmp)
                 %tmp
@@ -334,9 +336,31 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
-            title(sprintf('Time Step: %d',t));
+            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+%             title(sprintf('Time: %ds, Time Step: %d', Horizon, t));
+            axis([-450, 300, -450, 300])
+            if rep == 10 % 10 bsg
+                draw = true;
+            else
+                draw = false;
+            end
+            xlabel('x','FontSize',14);
+            ylabel('y','FontSize',14);
+%             grid on;
+            set(gca,'XTickLabel',[],'YTickLabel',[]);
+            if draw
+                if strcmp(planner_name, 'bsg')
+                    title(sprintf('BSG: 2 Robots, 4 Adversarial Targets'));
+                    savefig('figures/traj_2v4_BSG.fig');
+                    exportgraphics(gca,'figures/traj_2v4_BSG.png','BackgroundColor','none','ContentType','image');
+                else
+                    title(sprintf('Greedy: 2 Robots, 4 Adversarial Targets'));
+                    savefig('figures/traj_2v4_Greedy.fig');
+                    exportgraphics(gca,'figures/traj_2v4_Greedy.png','BackgroundColor','none','ContentType','image');
+                end
+            end
             %{
             if ~isempty(att)
                 att = [att; 5*ones(1, size(att,2))];
@@ -445,6 +469,11 @@ if strcmp(mode, 'analysis')
 
     h5 = shadedErrorBar(dT*[1:t], mean(dist_bsg', 1), std(dist_bsg'), 'lineprops',{'Color',"#0072BD", 'LineWidth', 1});
     h6 = shadedErrorBar(dT*[1:t], mean(dist_greedy', 1), std(dist_greedy'), 'lineprops',{'Color',"#D95319", 'LineWidth', 1});
-    
+    legend([h5.mainLine h6.mainLine], 'BSG', 'SG', 'location','northwest');
+    ylabel({'Sum of Minimum Distances'},'FontSize',fnt_sz);
+    xlabel('Time [s]','FontSize',fnt_sz);
+    title('BSG vs. Greedy', 'FontSize',fnt_sz);
+    savefig('figures/mean_cov_2v4.fig');
+    exportgraphics(gca,'figures/mean_cov_2v4.png','BackgroundColor','none','ContentType','image')
     %title(planner_name);
 end

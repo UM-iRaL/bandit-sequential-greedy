@@ -5,14 +5,15 @@ close all;
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'bsg';
+draw = false;
+planner_name = 'greedy';
 vid_name = strcat(strcat('video\two_vs_four_', planner_name),'_test.mp4');
-% mode = 'analysis';
-mode = 'experiment';
+mode = 'analysis';
+% mode = 'experiment';
 
 % Experiment parameters
 Horizon = 100;
-num_rep = 1;
+num_rep = 100;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -29,7 +30,7 @@ directions = [0:5] * pi/3;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
-vis_map = init_blank_ndmap([-100; -100],[450; 450],0.25,'logical');
+vis_map = init_blank_ndmap([-100; -100],[1500; 1500],0.25,'logical');
 %vis_map.map = ~vis_map.map;
 vis_map_save = cell(run_len,num_rep);
 
@@ -43,10 +44,10 @@ x_true(1, 2, :, :) = repmat([-35; -35; 0],1,num_rep);
 % Initial position for targets
 tg_true = zeros(3,num_tg,run_len+1,num_rep); % dynamic target
 % first two are position, last one is id
-tg_true(:,1,1,:) = repmat([-60;0;1],1,num_rep);
-tg_true(:,2,1,:) = repmat([-50;0;2],1,num_rep);
-tg_true(:,3,1,:) = repmat([0;-60;3],1,num_rep);
-tg_true(:,4,1,:) = repmat([0;-50;4],1,num_rep);
+tg_true(:,1,1,:) = repmat([-45;0;1],1,num_rep);
+tg_true(:,2,1,:) = repmat([-35;0;2],1,num_rep);
+tg_true(:,3,1,:) = repmat([0;-35;3],1,num_rep);
+tg_true(:,4,1,:) = repmat([0;-45;4],1,num_rep);
 
 
 % Measurement History Data
@@ -68,6 +69,7 @@ for rep = 1:num_rep
     if strcmp(mode, 'analysis')
         viz = false;
         vid = false;
+        draw = false;
         if rep <= num_rep / 2
             planner_name = 'bsg';
         else
@@ -75,7 +77,7 @@ for rep = 1:num_rep
         end
     end
     % Create Robots and Planners
-    v_robot = [1.3; 1.1]*0.5/dT;
+    v_robot = [1.4; 0.85]*1.5/dT;
     for r = 1:num_robot
         if r == 1
             R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(64), dT);
@@ -89,8 +91,8 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    v_tg = [0.6;0.6;0.35;0.35]*0.5/dT;
-    yaw_tg = [deg2rad(55);deg2rad(45);deg2rad(35);deg2rad(45)];
+    v_tg = [0.6;0.53;0.27;0.26]*1.5/dT;
+    yaw_tg = [deg2rad(90);deg2rad(67);deg2rad(46);deg2rad(23)];
     T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep), yaw_tg(1), run_len, 'straight', dT);
     T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep), yaw_tg(2), run_len, 'straight', dT);
     T(3) = target_v1(3, v_tg(3), tg_true(:,3,1,rep), yaw_tg(3), run_len, 'straight', dT);
@@ -104,7 +106,7 @@ for rep = 1:num_rep
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
         cbone = bone; colormap(cbone(end:-1:(end-30),:));
               
-        axis([-100,450, -100, 450])
+
         for r = 1:num_robot
             if r == 1
                 r_color = 'b';
@@ -119,12 +121,10 @@ for rep = 1:num_rep
         h0.tg = [];
         h0.ye = [];
         for kk = 1:num_tg
-            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
+            h0.tg(kk) = draw_pose_nx([], T(kk).get_pose(1)','g',15);
         end
 %         title(sprintf('Time Step: %d',0));
-        title(sprintf('2 Robots, 4 Targets'));
-        xlabel('x','FontSize',14);
-        ylabel('y','FontSize',14);
+
         grid on;
         set(gca,'XTickLabel',[],'YTickLabel',[]);
         drawnow;
@@ -144,15 +144,20 @@ for rep = 1:num_rep
                 viz = true;
             end
         end
-        if t == 600
+
+        if t == 801/3
             T(1).set_yaw(t-1, deg2rad(90));
             T(2).set_yaw(t-1, deg2rad(90));
-        end
-        if t == 800
-            T(3).set_yaw(t-1, deg2rad(0));
             T(4).set_yaw(t-1, deg2rad(0));
         end
-        if t == 1200
+        if t == 1200/3
+%             T(3).set_yaw(t-1, deg2rad(0));
+            T(3).set_yaw(t-1, deg2rad(0));
+        end
+        if t == 1110/3
+            T(2).set_yaw(t-1, deg2rad(0));
+        end
+        if t == 1401/3
             T(1).set_yaw(t-1, deg2rad(0));
             T(2).set_yaw(t-1, deg2rad(0));
         end
@@ -350,12 +355,25 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',15);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
-            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northwest');
+            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
 %             title(sprintf('Time: %ds, Time Step: %d', Horizon, t));
-            title(sprintf('2 Robots, 4 Targets'));
-            exportgraphics(gca,'figures/traj_2v4_non.png','BackgroundColor','none','ContentType','image')
+            axis([-100, 1300, -100, 1300])
+            if rep == 2 % 10 bsg
+                draw = true;
+            else
+                draw = false;
+            end
+            if draw
+                if strcmp(planner_name, 'bsg')
+                    savefig('figures/traj_2v4_BSG_non.fig');
+                    exportgraphics(gca,'figures/traj_2v4_BSG_non.png','BackgroundColor','none','ContentType','image');
+                else
+                    savefig('figures/traj_2v4_Greedy_non.fig');
+                    exportgraphics(gca,'figures/traj_2v4_Greedy_non.png','BackgroundColor','none','ContentType','image');
+                end
+            end
             %{
             if ~isempty(att)
                 att = [att; 5*ones(1, size(att,2))];
@@ -384,7 +402,7 @@ end
 
 % Plot Measurement
 if strcmp(mode, 'analysis')
-    if num_rep <= 4
+    if num_rep < 4
         error('not enough reps!');
     end
     % Plot Measurement
@@ -464,6 +482,11 @@ if strcmp(mode, 'analysis')
 
     h5 = shadedErrorBar(dT*[1:t], mean(dist_bsg', 1), std(dist_bsg'), 'lineprops',{'Color',"#0072BD", 'LineWidth', 1});
     h6 = shadedErrorBar(dT*[1:t], mean(dist_greedy', 1), std(dist_greedy'), 'lineprops',{'Color',"#D95319", 'LineWidth', 1});
-    
+    legend([h5.mainLine h6.mainLine], 'BSG', 'SG', 'location','northwest');
+    ylabel({'Sum of Minimum Distances'},'FontSize',fnt_sz);
+    xlabel('Time [s]','FontSize',fnt_sz);
+    title('BSG vs. Greedy', 'FontSize',fnt_sz);
+    savefig('figures/mean_cov_2v4_non.fig');
+    exportgraphics(gca,'figures/mean_cov_2v4_non.png','BackgroundColor','none','ContentType','image')
     %title(planner_name);
 end

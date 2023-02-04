@@ -5,14 +5,15 @@ close all;
 % Should we get video and image?
 vid = false;
 viz = true;
-planner_name = 'bsg';
+draw = false;
+planner_name = 'greedy';
 vid_name = strcat(strcat('video\two_vs_three_', planner_name),'_test.mp4');
-% mode = 'analysis';
-mode = 'experiment';
+mode = 'analysis';
+% mode = 'experiment';
 % Experiment parameters
-Horizon = 100;
-num_rep = 10;
-run_len = 2000;
+Horizon = 60;
+num_rep = 4;
+run_len = 1200;
 dT = Horizon / run_len;
 num_robot = 2;
 num_tg = 3;
@@ -28,7 +29,7 @@ directions = [0:5] * pi/3;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
-vis_map = init_blank_ndmap([-map_size*3; -map_size*3],[map_size*3; map_size*3],0.25,'logical');
+vis_map = init_blank_ndmap([-1000; -1000],[1000; 1000],0.25,'logical');
 %vis_map.map = ~vis_map.map;
 vis_map_save = cell(run_len,num_rep);
 
@@ -87,7 +88,7 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    v_tg = [0.35; 0.5; 0.72]*1/dT;
+    v_tg = [0.3; 0.5; 0.72]*1/dT;
     yaw_tg = [0; deg2rad(90); deg2rad(-90)];
     T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep),yaw_tg(1), run_len, 'straight',dT);
     T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep),yaw_tg(2), run_len, 'straight',dT);
@@ -95,7 +96,7 @@ for rep = 1:num_rep
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[0,0,1000,1000]);
+        figure('Color',[1 1 1],'Position',[0,0,450,400]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
@@ -118,9 +119,6 @@ for rep = 1:num_rep
         for kk = 1:num_tg
             h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
         end
-        title(sprintf('Time Step: %d',0));
-        xlabel('x [m]','FontSize',14);
-        ylabel('y [m]','FontSize',14);
         drawnow;
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
@@ -139,7 +137,8 @@ for rep = 1:num_rep
             end
         end
         if t == 490
-            T(3).set_yaw(t-1, deg2rad(90))
+            T(3).set_v(0.5);
+            T(3).set_yaw(t-1, deg2rad(90));
             T(3).set_type('straight');
         end
         % Move Targets and get targets' positions at t
@@ -321,7 +320,7 @@ for rep = 1:num_rep
         if viz
             set(h0.viz,'cdata',vis_map.map.');
 
-            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'g:');
+            h0.y = draw_traj_nx([],permute(tg_true(:,:,1:t,rep),[3 1 2 4]),'g--');
 
             for r = 1:num_robot
                 if r == 1
@@ -329,9 +328,10 @@ for rep = 1:num_rep
                 elseif r == 2
                     r_color = 'r';   
                 end
-                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,5);
+                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,1:2,rep),[1 3 2 4]),strcat(r_color, '-'));
+                h0.rob(r) = draw_pose_nx(h0.rob(r),permute(x_true(t,r,:,rep),[3 2 1]),r_color,15);
                 h0.fov(r) = draw_fov_nx(h0.fov(r),permute(x_true(t,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense);
-                h0.r_traj(r) = draw_traj_nx([],permute(x_true(1:t,r,:,rep),[1 3 2 4]),strcat(r_color, ':'));
+
             end
             tmp = estm_tg_save{t, rep};
             if ~isempty(tmp)
@@ -342,9 +342,12 @@ for rep = 1:num_rep
             end
             
             for kk = 1 : num_tg
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
+%                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
-            title(sprintf('Time Step: %d',t));
+            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+            axis([-150, 650, -150, 650]);
+            set(gca,'XTickLabel',[],'YTickLabel',[]);
             %{
             if ~isempty(att)
                 att = [att; 5*ones(1, size(att,2))];
@@ -352,6 +355,21 @@ for rep = 1:num_rep
             delete(h0.ye);
             h0.ye = drawEnv(att',1);
             %}
+            if rep == 8
+                %bsg 8, greedy 6
+                draw = true;
+            else
+                draw = false;
+            end
+            if draw
+                if strcmp(planner_name, 'bsg')
+                    savefig('figures/traj_2v3_BSG_non.fig');
+                    exportgraphics(gca,'figures/traj_2v3_BSG_non.png','BackgroundColor','none','ContentType','image');
+                else
+                    savefig('figures/traj_2v3_Greedy_non.fig');
+                    exportgraphics(gca,'figures/traj_2v3_Greedy_non.png','BackgroundColor','none','ContentType','image');
+                end
+            end
             drawnow;
             %pause(0.125)
             if vid
@@ -448,6 +466,10 @@ if strcmp(mode, 'analysis')
 
     h5 = shadedErrorBar(dT*[1:t], mean(dist_bsg', 1), std(dist_bsg'), 'lineprops',{'Color',"#0072BD", 'LineWidth', 1});
     h6 = shadedErrorBar(dT*[1:t], mean(dist_greedy', 1), std(dist_greedy'), 'lineprops',{'Color',"#D95319", 'LineWidth', 1});
-    
+    legend([h5.mainLine h6.mainLine], 'BSG', 'SG', 'location','northwest');
+    ylabel({'Sum of Minimum Distances'},'FontSize',fnt_sz);
+    xlabel('Time [s]','FontSize',fnt_sz);
+    savefig('figures/mean_cov_2v3_non.fig');
+    exportgraphics(gca,'figures/mean_cov_2v3_non.png','BackgroundColor','none','ContentType','image')
     %title(planner_name);
 end
