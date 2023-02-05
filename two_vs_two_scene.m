@@ -5,16 +5,16 @@ close all;
 % Should we get video and image?
 vid = false;
 viz = true;
-draw = true;
-planner_name = 'greedy';
+draw = false;
+planner_name = 'bsg';
 vid_name = strcat(strcat('video\two_vs_two_', planner_name),'_test.mp4');
-mode = 'analysis';
-% mode = 'experiment';
+% mode = 'analysis';
+mode = 'experiment';
 % planner_name = 'bsg';
 % Experiment parameters
 Horizon = 100;
-num_rep = 100;
-run_len = 1000;
+num_rep = 10;
+run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
 num_tg = 2;
@@ -26,7 +26,7 @@ rng(1,'philox');
 % ACTION_SET = transpose([Vx(:), Vy(:)]);
 % ACTION_SET = normalize(ACTION_SET, 1, "norm");
 % ACTION_SET(isnan(ACTION_SET)) = 0;
-directions = [0:3] * pi/2;
+directions = [0:5] * pi/3;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
@@ -72,7 +72,7 @@ for rep = 1:num_rep
         end
     end
     % Create Robots and Planners
-    v_robot = [0.7; 0.4]*1/dT;
+    v_robot = [1.1; 0.7]*20;
     for r = 1:num_robot
         if r == 1
             R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(94), dT);
@@ -86,7 +86,7 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, v_robot(r)*ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    v_tg = [0.25; 0.45]*1/dT;
+    v_tg = [0.30; 0.4]*20;
     yaw_tg = [0; deg2rad(90)];
     T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep), yaw_tg(1), run_len, 'straight',dT);
     T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep), yaw_tg(2), run_len, 'straight',dT);
@@ -94,7 +94,7 @@ for rep = 1:num_rep
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position', [0,0, 450, 400]);
+        figure('Color',[1 1 1],'Position', [0,0, 900, 800]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
@@ -107,27 +107,37 @@ for rep = 1:num_rep
             elseif r == 2
                 r_color = 'r';
             end
-            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),r_color,5);
+            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),r_color,15);
             h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense, r_color);
         end
+        axis([-200,500,-200,500]);
         %h0.xe = draw_traj_nx([],permute(x_save(1,:,:,rep),[1 3 2]),'r:');
         h0.tg_cov = [];
         h0.tg = [];
         h0.ye = [];
         for kk = 1:num_tg
-            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
+            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',15);
         end
         title(sprintf('Time Step: %d',0));
         xlabel('x [m]','FontSize',14);
         ylabel('y [m]','FontSize',14);
+        xlim([-200,500]);
+        xlim([-200,500]);
         drawnow;
+        if rep == 3
+            vid = true;
+        end
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
-            writerObj.FrameRate = 40;
+            writerObj.FrameRate = 20;
             open(writerObj);
         end
     end
     viz = false;
+    if rep == 3
+    viz = true;
+    vid = true;
+    end
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
         if t==run_len-1
@@ -337,8 +347,9 @@ for rep = 1:num_rep
                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
             legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
-            axis([-200,400,-200,400]);
-            set(gca,'XTickLabel',[],'YTickLabel',[]);
+            axis([-200,700,-200,700]);
+            title(sprintf('Time Step: %d',t));
+            %set(gca,'XTickLabel',[],'YTickLabel',[]);
             %{
             if ~isempty(att)
                 att = [att; 5*ones(1, size(att,2))];
@@ -346,6 +357,7 @@ for rep = 1:num_rep
             delete(h0.ye);
             h0.ye = drawEnv(att',1);
             %}
+            draw = false;
             if draw
                 if strcmp(planner_name, 'bsg')
                     title(sprintf('BSG: 2 Robots, 2 Targets'));
