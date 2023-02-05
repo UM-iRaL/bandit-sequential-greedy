@@ -11,9 +11,9 @@ vid_name = strcat(strcat('video\two_vs_three_', planner_name),'_test.mp4');
 mode = 'analysis';
 % mode = 'experiment';
 % Experiment parameters
-Horizon = 60;
-num_rep = 4;
-run_len = 1200;
+Horizon = 100;
+num_rep = 100;
+run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
 num_tg = 3;
