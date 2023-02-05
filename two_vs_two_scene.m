@@ -6,7 +6,7 @@ close all;
 vid = false;
 viz = true;
 draw = false;
-planner_name = 'bsg';
+planner_name = 'greedy';
 vid_name = strcat(strcat('video\two_vs_two_', planner_name),'_test.mp4');
 % mode = 'analysis';
 mode = 'experiment';
@@ -124,9 +124,9 @@ for rep = 1:num_rep
         xlim([-200,500]);
         xlim([-200,500]);
         drawnow;
-        if rep == 3
-            vid = true;
-        end
+%         if rep == 3
+%             vid = true;
+%         end
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
             writerObj.FrameRate = 20;
@@ -134,10 +134,10 @@ for rep = 1:num_rep
         end
     end
     viz = false;
-    if rep == 3
-    viz = true;
-    vid = true;
-    end
+%     if rep == 3
+%     viz = true;
+%     vid = true;
+%     end
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
         if t==run_len-1

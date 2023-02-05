@@ -8,11 +8,11 @@ viz = true;
 draw = false;
 planner_name = 'greedy';
 vid_name = strcat(strcat('video\two_vs_three_', planner_name),'_test.mp4');
-mode = 'analysis';
+mode = 'experiment';
 % mode = 'experiment';
 % Experiment parameters
 Horizon = 100;
-num_rep = 100;
+num_rep = 10;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -74,7 +74,7 @@ for rep = 1:num_rep
         end
     end
     % Create Robots and Planners
-    v_robot = [1.3; 1.1]*1/dT;
+    v_robot = [1.3; 1.1]*20;
     for r = 1:num_robot
         if r == 1
             R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(64), dT);
@@ -88,7 +88,7 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    v_tg = [0.3; 0.5; 0.72]*1/dT;
+    v_tg = [0.3; 0.5; 0.72]*20;
     yaw_tg = [0; deg2rad(90); deg2rad(-90)];
     T(1) = target_v1(1, v_tg(1), tg_true(:,1,1,rep),yaw_tg(1), run_len, 'straight',dT);
     T(2) = target_v1(2, v_tg(2), tg_true(:,2,1,rep),yaw_tg(2), run_len, 'straight',dT);
@@ -137,7 +137,7 @@ for rep = 1:num_rep
             end
         end
         if t == 490
-            T(3).set_v(0.5);
+            T(3).set_v(10);
             T(3).set_yaw(t-1, deg2rad(90));
             T(3).set_type('straight');
         end
@@ -146,6 +146,9 @@ for rep = 1:num_rep
             for kk = 1:num_tg
                 T(kk).move(t-1, reshape(squeeze(x_true(t-1, :, :, rep)), num_robot,[]));
                 tg_true(:, kk, t, rep) = T(kk).get_position(t)';
+                if t == 491
+                ;
+                end
             end
         end
         % Plan Moves -> compute u_save(t, r, :, rep)

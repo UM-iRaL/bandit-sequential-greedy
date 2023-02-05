@@ -13,7 +13,7 @@ mode = 'experiment';
 
 % Experiment parameters
 Horizon = 100;
-num_rep = 10;
+num_rep = 100;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;

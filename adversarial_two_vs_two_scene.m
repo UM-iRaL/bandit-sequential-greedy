@@ -6,7 +6,7 @@ close all;
 vid = false;
 viz = true;
 draw = false;
-planner_name = 'bsg';
+planner_name = 'greedy';
 vid_name = strcat(strcat('video\adversarial_heter_two_vs_two_', planner_name),'_test.mp4');
 % mode = 'analysis';
 mode = 'experiment';
@@ -73,7 +73,7 @@ for rep = 1:num_rep
         end
     end
     % Create Robots and Planners
-    v_robot = [1.5; 1]*10;
+    v_robot = [1.5; 1]*20;
     for r = 1:num_robot
         if r == 1
             R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(74), dT);
@@ -87,7 +87,7 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
-    v_tg = [0.6; 0.4]*10;
+    v_tg = [0.6; 0.4]*20;
     yaw_tg = [deg2rad(90); deg2rad(90)];
     T(1) = adversarial_target_v1(1, v_tg(1), tg_true(:,1,1,rep), yaw_tg(1), run_len, 'straight', dT);   %left
     T(2) = adversarial_target_v1(2, v_tg(2), tg_true(:,2,1,rep), yaw_tg(2), run_len, 'straight', dT);   %right
@@ -107,7 +107,7 @@ for rep = 1:num_rep
             elseif r == 2
                 r_color = 'r';
             end
-            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),r_color,5);
+            h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),r_color,15);
             h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense, r_color);
         end
         %h0.xe = draw_traj_nx([],permute(x_save(1,:,:,rep),[1 3 2]),'r:');
@@ -116,7 +116,7 @@ for rep = 1:num_rep
         h0.ye = [];
         for kk = 1:num_tg
 %             h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
-            h0.tg(kk) = draw_pose_nx([], T(kk).get_pose(1)','g',5);
+            h0.tg(kk) = draw_pose_nx([], T(kk).get_pose(1)','g',15);
         end
         title(sprintf('Time Step: %d',0));
         xlabel('x [m]','FontSize',14);
@@ -323,7 +323,7 @@ for rep = 1:num_rep
             
             for kk = 1 : num_tg
 %                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
-                h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',5);
+                h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
             legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
 %             title(sprintf('Time: %ds, Time Step: %d', Horizon, t));

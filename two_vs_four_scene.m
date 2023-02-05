@@ -8,12 +8,12 @@ viz = true;
 draw = false;
 planner_name = 'greedy';
 vid_name = strcat(strcat('video\two_vs_four_', planner_name),'_test.mp4');
-mode = 'analysis';
-% mode = 'experiment';
+% mode = 'analysis';
+mode = 'experiment';
 
 % Experiment parameters
 Horizon = 100;
-num_rep = 100;
+num_rep = 10;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;

@@ -47,13 +47,7 @@ classdef target_v1 < handle
             min_dist = this.min_dist_to_robots(t, pos_r);
             this.all_min_dist(t) = min_dist;
             % if robots are within certain range, enter escape mode.
-            if min_dist < 0
-                this.state = 'escape';
-                this.v = this.initial_v * 2;
-            else
-                this.state = 'regular';
-                this.v = this.initial_v;
-            end
+
             if strcmp(this.state, 'regular')
                 if strcmp(this.type,'circle')
                     ang_v = this.v/80;
@@ -94,10 +88,6 @@ classdef target_v1 < handle
                 else
                     error('unseen type.')
                 end
-            else 
-                % escape mode, double speed and escape.
-                escape_dir = dist_vec(:, min_idx) / min_dist;
-                this.x(t+1, 1:2) = (this.x(t, 1:2)' + escape_dir * this.v)';
             end        
         end
 
