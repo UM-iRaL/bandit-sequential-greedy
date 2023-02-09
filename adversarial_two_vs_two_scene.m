@@ -12,12 +12,12 @@ vid_name = strcat(strcat('video\adversarial_heter_two_vs_two_', planner_name),'_
 mode = 'experiment';
 % Experiment parameters
 Horizon = 100;
-num_rep = 10;
+num_rep = 8;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
 num_tg = 2;
-map_size = 100;
+map_size = 200;
 rng(1,'philox');
 
 % Action set for robots
@@ -94,13 +94,13 @@ for rep = 1:num_rep
 
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[0,0,450,400]);
+        figure('Color',[1 1 1],'Position',[0,0,900,800]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
         cbone = bone; colormap(cbone(end:-1:(end-30),:));
-              
-        axis([-6*map_size,6*map_size,-3*map_size,3*map_size]);
+
+axis([-300, 500, -400, 400]);
         for r = 1:num_robot
             if r == 1
                 r_color = 'b';
@@ -118,17 +118,35 @@ for rep = 1:num_rep
 %             h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
             h0.tg(kk) = draw_pose_nx([], T(kk).get_pose(1)','g',15);
         end
-        title(sprintf('Time Step: %d',0));
-        xlabel('x [m]','FontSize',14);
-        ylabel('y [m]','FontSize',14);
+%         lgd = legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+%         lgd.FontSize = 12;
+%         legend boxoff;
+axis([-300, 500, -400, 400]);
+        if strcmp(planner_name, 'bsg')
+            title('BSG: 2 Robots vs. 2 Adversarial Targets [2X]', 'FontSize', 15);
+        else
+            title('SG-Heuristic: 2 Robots vs. 2 Adversarial Targets [2X]', 'FontSize', 15);
+        end
+        subtitle(sprintf('Time: %.2fs, Time Step: %d',0*dT, 0));
+        xlabel('x [m]','FontSize',15);
+        ylabel('y [m]','FontSize',15);
         drawnow;
+        if  rep == 8
+            vid = true;
+        end
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
             writerObj.FrameRate = 40;
             open(writerObj);
+            currFrame = getframe(gcf);
+            writeVideo(writerObj, currFrame);
         end
     end
     viz = false;
+    if rep == 8
+        viz = true;
+        vid = true;
+    end
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
         if t==run_len-1
@@ -325,30 +343,26 @@ for rep = 1:num_rep
 %                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
-            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
-%             title(sprintf('Time: %ds, Time Step: %d', Horizon, t));
-            axis([-400, 400,-400, 400]);
-            if rep == 1 % 7 bsg 1 greedy
-                draw = true;
+            lgd = legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+            lgd.FontSize = 12;
+            legend boxoff;
+            axis([-300, 500, -400, 400]);
+
+            if strcmp(planner_name, 'bsg')
+                title('BSG: 2 Robots vs. 2 Adversarial Targets [2X]', 'FontSize', 15);
             else
-                draw = false;
+                title('SG-Heuristic: 2 Robots vs. 2 Adversarial Targets [2X]', 'FontSize', 15);
             end
-            xlabel('x','FontSize',14);
-            ylabel('y','FontSize',14);
+            subtitle(sprintf('Time: %.2fs, Time Step: %d',t*dT, t));
+            draw = false;
+            xlabel('x [m]','FontSize',15);
+            ylabel('y [m]','FontSize',15);
 %             grid on;
-            set(gca,'XTickLabel',[],'YTickLabel',[]);
-            if draw
-                if strcmp(planner_name, 'bsg')
-                    title(sprintf('BSG: 2 Robots, 2 Adversarial Targets'));
-                    savefig('figures/traj_2v2_BSG.fig');
-                    exportgraphics(gca,'figures/traj_2v2_BSG.png','BackgroundColor','none','ContentType','image');
-                else
-                    title(sprintf('Greedy: 2 Robots, 2 Adversarial Targets'));
-                    savefig('figures/traj_2v2_Greedy.fig');
-                    exportgraphics(gca,'figures/traj_2v2_Greedy.png','BackgroundColor','none','ContentType','image');
-                end
-            end
+            %set(gca,'XTickLabel',[],'YTickLabel',[]);
             drawnow;
+            if rep == 10
+                vid = true;
+            end
             %pause(0.125)
             if vid
                 currFrame = getframe(gcf);

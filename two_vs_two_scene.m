@@ -6,14 +6,15 @@ close all;
 vid = false;
 viz = true;
 draw = false;
-planner_name = 'greedy';
+planner_name = 'bsg';
+% planner_name = 'bsg';
 vid_name = strcat(strcat('video\two_vs_two_', planner_name),'_test.mp4');
 % mode = 'analysis';
 mode = 'experiment';
-% planner_name = 'bsg';
+
 % Experiment parameters
 Horizon = 100;
-num_rep = 10;
+num_rep = 3;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -93,6 +94,12 @@ for rep = 1:num_rep
 %     T(3) = target_v1(3, 0.5, tg_true(:,3,1,rep), run_len, 'random');
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
+%         viz = false;
+%     if rep == 3
+%     viz = true;
+%     vid = true;
+%     end
+
     if viz
         figure('Color',[1 1 1],'Position', [0,0, 900, 800]);
         hold on;
@@ -110,34 +117,45 @@ for rep = 1:num_rep
             h0.rob(r) = draw_pose_nx([],permute(x_true(1,r,:,rep),[3 2 1]),r_color,15);
             h0.fov(r) = draw_fov_nx([],permute(x_true(1,r,:,rep),[3 2 1]),R(r).fov,R(r).r_sense, r_color);
         end
-        axis([-200,500,-200,500]);
+        axis([-200,700,-200,700]);
         %h0.xe = draw_traj_nx([],permute(x_save(1,:,:,rep),[1 3 2]),'r:');
         h0.tg_cov = [];
         h0.tg = [];
         h0.ye = [];
         for kk = 1:num_tg
-            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',15);
+            h0.tg(kk) = draw_pose_nx([], T(kk).get_pose(1)','g',15);
         end
         title(sprintf('Time Step: %d',0));
         xlabel('x [m]','FontSize',14);
         ylabel('y [m]','FontSize',14);
-        xlim([-200,500]);
-        xlim([-200,500]);
+        %lgd = legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+            %lgd.FontSize = 12;
+            axis([-200,700,-200,700]);
+            if strcmp(planner_name, 'bsg')
+                title('BSG: 2 Robots vs. 2 Non-Adversarial Targets [2X]', 'FontSize', 15);
+            else
+                title('SG-Heuristic: 2 Robots vs. 2 Non-Adversarial Targets [2X]', 'FontSize', 15);
+            end
+            subtitle(sprintf('Time: %.2fs, Time Step: %d',0*dT, 0));
+        xlim([-200,700]);
+        ylim([-200,700]);
         drawnow;
-%         if rep == 3
-%             vid = true;
-%         end
+        if rep == 3
+            vid = true;
+        end
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
-            writerObj.FrameRate = 20;
+            writerObj.FrameRate = 40;
             open(writerObj);
+            currFrame = getframe(gcf);
+            writeVideo(writerObj, currFrame);
         end
     end
     viz = false;
-%     if rep == 3
-%     viz = true;
-%     vid = true;
-%     end
+    if rep == 3
+        viz = true;
+        vid = true;
+    end
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     for t = 1:run_len
         if t==run_len-1
@@ -346,9 +364,16 @@ for rep = 1:num_rep
 %                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
-            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+            lgd = legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+            lgd.FontSize = 12;
+            legend boxoff;
             axis([-200,700,-200,700]);
-            title(sprintf('Time Step: %d',t));
+            if strcmp(planner_name, 'bsg')
+                title('BSG: 2 Robots vs. 2 Non-Adversarial Targets [2X]', 'FontSize', 15);
+            else
+                title('SG-Heuristic: 2 Robots vs. 2 Non-Adversarial Targets [2X]', 'FontSize', 15);
+            end
+            subtitle(sprintf('Time: %.2fs, Time Step: %d',t*dT, t));
             %set(gca,'XTickLabel',[],'YTickLabel',[]);
             %{
             if ~isempty(att)

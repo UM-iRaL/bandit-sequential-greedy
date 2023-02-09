@@ -6,13 +6,13 @@ close all;
 vid = false;
 viz = true;
 draw = false;
-planner_name = 'greedy';
+planner_name = 'bsg';
 vid_name = strcat(strcat('video\two_vs_three_', planner_name),'_test.mp4');
 mode = 'experiment';
 % mode = 'experiment';
 % Experiment parameters
 Horizon = 100;
-num_rep = 10;
+num_rep = 2;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -96,13 +96,13 @@ for rep = 1:num_rep
 %     T(4) = target_v1(4, 0.5, tg_true(:,4,1,rep), run_len, 'random');
     % Visualization
     if viz
-        figure('Color',[1 1 1],'Position',[0,0,450,400]);
+        figure('Color',[1 1 1],'Position',[0,0,900,800]);
         hold on;
         h0.viz = imagesc([vis_map.pos{1}(1);vis_map.pos{1}(end)],...
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
         cbone = bone; colormap(cbone(end:-1:(end-30),:));
               
-        axis([-3*map_size,3*map_size,-3*map_size,3*map_size]);
+        axis([-200,900,-200,900]);
         for r = 1:num_robot
             if r == 1
                 r_color = 'b';
@@ -117,18 +117,34 @@ for rep = 1:num_rep
         h0.tg = [];
         h0.ye = [];
         for kk = 1:num_tg
-            h0.tg(kk) = draw_pose_nx([], tg_true(:,kk,1,rep),'g',5);
+            h0.tg(kk) = draw_pose_nx([], T(kk).get_pose(1)','g',15);
         end
+        if strcmp(planner_name, 'bsg')
+            title('BSG: 2 Robots vs. 3 Non-Adversarial Targets [2X]', 'FontSize', 15);
+        else
+            title('SG-Heuristic: 2 Robots vs. 3 Non-Adversarial Targets [2X]', 'FontSize', 15);
+        end
+            subtitle(sprintf('Time: %.2fs, Time Step: %d',0*dT, 0));
+        xlabel('x [m]','FontSize',15);
+        ylabel('y [m]','FontSize',15);
         drawnow;
+        if rep == 2
+            vid = true;
+        end
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
             writerObj.FrameRate = 40;
             open(writerObj);
+            currFrame = getframe(gcf);
+            writeVideo(writerObj, currFrame);
         end
     end
 
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     viz = false;
+    if rep == 2
+        viz = true;
+    end
     
     for t = 1:run_len
         if t==run_len-1
@@ -136,7 +152,7 @@ for rep = 1:num_rep
                 viz = true;
             end
         end
-        if t == 490
+        if t == floor(490/2000 * run_len)
             T(3).set_v(10);
             T(3).set_yaw(t-1, deg2rad(90));
             T(3).set_type('straight');
@@ -283,7 +299,7 @@ for rep = 1:num_rep
 
             r_v = 1:num_robot;
             itr_order = r_v(randperm(length(r_v)));
-            for r =  num_robot:-1:1% % 1:num_robot%itr_order%
+            for r =  itr_order% % 1:num_robot%itr_order%
                 if size(estm_tg_save{t, rep}, 2) ~= 0
 
                     % previous objective function
@@ -348,9 +364,16 @@ for rep = 1:num_rep
 %                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), tg_true(:,kk,t,rep),'g',5);
                 h0.tg(kk) = draw_pose_nx(h0.tg(kk), T(kk).get_pose(t)','g',15);
             end
-            legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
-            axis([-150, 650, -150, 650]);
-            set(gca,'XTickLabel',[],'YTickLabel',[]);
+            lgd = legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
+            lgd.FontSize = 12;
+            legend boxoff;
+            axis([-200,900,-200,900]);
+            if strcmp(planner_name, 'bsg')
+                title('BSG: 2 Robots vs. 3 Non-Adversarial Targets [2X]', 'FontSize', 15);
+            else
+                title('SG-Heuristic: 2 Robots vs. 3 Non-Adversarial Targets [2X]', 'FontSize', 15);
+            end
+            subtitle(sprintf('Time: %.2fs, Time Step: %d',t*dT, t));
             %{
             if ~isempty(att)
                 att = [att; 5*ones(1, size(att,2))];
@@ -358,21 +381,6 @@ for rep = 1:num_rep
             delete(h0.ye);
             h0.ye = drawEnv(att',1);
             %}
-            if rep == 8
-                %bsg 8, greedy 6
-                draw = true;
-            else
-                draw = false;
-            end
-            if draw
-                if strcmp(planner_name, 'bsg')
-                    savefig('figures/traj_2v3_BSG_non.fig');
-                    exportgraphics(gca,'figures/traj_2v3_BSG_non.png','BackgroundColor','none','ContentType','image');
-                else
-                    savefig('figures/traj_2v3_Greedy_non.fig');
-                    exportgraphics(gca,'figures/traj_2v3_Greedy_non.png','BackgroundColor','none','ContentType','image');
-                end
-            end
             drawnow;
             %pause(0.125)
             if vid
