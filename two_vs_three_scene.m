@@ -73,13 +73,11 @@ for rep = 1:num_rep
     end
     % Create Robots and Planners
     v_robot = [1.3; 1.1]*20;
-    for r = 1:num_robot
-        if r == 1
-            R(r) = robot_nx(x_true(1, r, :, rep), 150, deg2rad(64), dT);
-        else
-            R(r) = robot_nx(x_true(1, r, :, rep), 100, deg2rad(94), dT);
-        end
-        
+    r_senses = [150;100];
+    fovs = [deg2rad(64); deg2rad(94)];
+    dT_robo = Horizon / run_len * ones(num_robot, 1);
+    R = init_robots_array(num_robot, squeeze(x_true(1, :, :, rep)), r_senses, fovs, dT_robo);
+    for r = 1:num_robot        
         P(r) = bsg_planner_nx_v1(num_robot,r, v_robot(r)*ACTION_SET, run_len, R(r).T, R(r).r_sense,...
             R(r).fov,[R(r).r_sigma;R(r).b_sigma]);
 

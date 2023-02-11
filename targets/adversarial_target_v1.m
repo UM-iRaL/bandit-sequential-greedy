@@ -64,7 +64,6 @@ classdef adversarial_target_v1 < handle
                 else
                     this.state = 'regular';
                     this.adversarial_trigger_time = 0;
-%                     this.v = this.initial_v;
                 end
             end
             
@@ -97,18 +96,12 @@ classdef adversarial_target_v1 < handle
             elseif strcmp(this.type, 'random')
                 theta = rand*2*pi;
                 this.x(t+1, 1:2) = this.x(t, 1:2) + rand*this.v*this.dT*[cos(theta) sin(theta)];
-            elseif strcmp(this.type, 'triangular')
-                this.x(t+1, :) = this.x(t, :);
-            elseif strcmp(this.type, 'zigzag')                
-
             elseif strcmp(this.type, 'straight')
                 this.x(t+1, 1:2) = this.x(t, 1:2) + (this.v*this.dT + 0.1*randn(1))*[cos(this.x(t, 3)) sin(this.x(t, 3))];
                 this.x(t+1, 3) = this.x(t, 3) + 0.1*randn(1);  
                 if mod(t-99, 200) == 0
-%                     this.x(t+1, 1:2) = this.x(t, 1:2) + (this.v*this.dT + 0.5*randn(1))*[cos(this.x(t, 3)) sin(this.x(t, 3))];
                     this.x(t+1, 3) = this.x(t, 3) + pi/3*randn(1);
-                end
-%                 this.x(t+1, 3) = this.x(t, 3) + 0.03*randn(1);            
+                end         
             else
                 error('unseen type.')
             end

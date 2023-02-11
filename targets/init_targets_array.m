@@ -1,4 +1,4 @@
-function targetsArray = init_targets_array(num_tg, type_tg, v_tg, tg_position, yaw_tg, run_len, motion_tg, dT_tg)
+function targets_array = init_targets_array(num_tg, type_tg, v_tg, tg_position, yaw_tg, run_len, motion_tg, dT_tg)
 % Input:
 % num_tg: number of targets, scalar
 % type_tg: type of targets, "normal", "adversarial"
@@ -18,9 +18,9 @@ end
 
 for kk = 1 : num_tg
     if strcmp(type_tg(kk), "normal")
-        targetsArray(kk) = target_v1(v_tg(kk), tg_position(:, kk), yaw_tg(kk), run_len, motion_tg(kk), dT_tg(kk));
+        targets_array(kk) = target_v1(v_tg(kk), tg_position(:, kk), yaw_tg(kk), run_len, motion_tg(kk), dT_tg(kk));
     else
-        targetsArray(kk) = adversarial_target_v1(v_tg(kk), tg_position(:, kk), yaw_tg(kk), run_len, motion_tg(kk), dT_tg(kk));
+        targets_array(kk) = adversarial_target_v1(v_tg(kk), tg_position(:, kk), yaw_tg(kk), run_len, motion_tg(kk), dT_tg(kk));
     end
 end
 end
