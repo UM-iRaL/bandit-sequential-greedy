@@ -17,7 +17,6 @@ function  y_cov = inv_rb_cov(x, z, cov_x, cov_z, cur_y_cov, cur_y)
             
         end
     else
-        
     end
 end
 

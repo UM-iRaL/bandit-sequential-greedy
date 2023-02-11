@@ -92,10 +92,6 @@ classdef robot_nx < handle
             obj.params.num_class = obj.num_class;
             obj.params.num_score = obj.num_score;
             obj.params.Cmat = obj.Cmat;
-            data = load('pscymat.mat');
-            obj.params.pscymat = data.pscymat; % num_score x num_class x num_class
-            %obj.params.pc = get_pc(obj);
-            %obj.params.ps = get_ps(obj);
             
         end
         
@@ -110,12 +106,10 @@ classdef robot_nx < handle
             x = obj.x;
         end
         
-
         function move(obj,u,smm)            
             if( nargin < 3)
                 %obj.x = dd_motion_model(obj.x,u,obj.T);
                 obj.x = point_mass_motion_model(obj.x, u, obj.T);
-
             else
                 obj.x = smm(obj.x,u,obj.params);
             end
@@ -131,9 +125,5 @@ classdef robot_nx < handle
             end
         end
         
-        function z = senseMAP(obj,map,MAP)
-            % map = num_obj x 3 = (x,y,class)
-            z = generate_msrmnt(map,obj.x.',obj.params,MAP);
-        end
     end
 end

@@ -8,24 +8,18 @@ classdef adversarial_target_v1 < handle
         type;
         n_time_step;
         state;
-        target_id;
         radius;
         t;
         adversarial_trigger_time;
-        gamma;
-        initial_gamma;
         dT;
         all_min_dist;
 
     end
     methods
-        function this = adversarial_target_v1(target_id,initial_v,x, yaw, n_time_step, type, dT)
+        function this = adversarial_target_v1(initial_v,x, yaw, n_time_step, type, dT)
             % Initialization
             % x->1 x 3 (x, y, id)   
             this.t = 1;
-            this.target_id = target_id;
-            this.initial_gamma = pi/2 * (this.target_id-1);
-            this.gamma = this.initial_gamma;
             this.v = initial_v;
             this.initial_v = initial_v;
             this.x = zeros(n_time_step+1, 4);
@@ -71,7 +65,6 @@ classdef adversarial_target_v1 < handle
                     this.state = 'regular';
                     this.adversarial_trigger_time = 0;
 %                     this.v = this.initial_v;
-                    this.gamma = this.initial_gamma;
                 end
             end
             
