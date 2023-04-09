@@ -6,13 +6,13 @@ close all;
 vid = false;
 viz = true;
 draw = false;
-planner_name = 'bsg';
+planner_name = 'greedy';
 vid_name = strcat(strcat('video\two_vs_three_', planner_name),'_test.mp4');
+% mode = 'analysis';
 mode = 'experiment';
-% mode = 'experiment';
 % Experiment parameters
 Horizon = 100;
-num_rep = 2;
+num_rep = 10;
 run_len = 2000;
 dT = Horizon / run_len;
 num_robot = 2;
@@ -29,7 +29,7 @@ directions = [0:5] * pi/3;
 ACTION_SET = [cos(directions); sin(directions)];
 
 % Visibility map
-vis_map = init_blank_ndmap([-1000; -1000],[1000; 1000],0.25,'logical');
+vis_map = init_blank_ndmap([-1000; -1000],[1500; 1500],0.25,'logical');
 
 % Initial pose for robots
 x_true = zeros(run_len+1, num_robot,3,num_rep); % robots
@@ -98,7 +98,7 @@ for rep = 1:num_rep
             [vis_map.pos{2}(1);vis_map.pos{2}(end)],vis_map.map.');
         cbone = bone; colormap(cbone(end:-1:(end-30),:));
               
-        axis([-200,900,-200,900]);
+        axis([-700,700,-200, 1200]);
         for r = 1:num_robot
             if r == 1
                 r_color = 'b';
@@ -142,7 +142,7 @@ for rep = 1:num_rep
             end
         end
         if t == floor(490/2000 * run_len)
-            T(3).set_v(10);
+            %T(3).set_v(10);
             T(3).set_yaw(t-1, deg2rad(90));
             T(3).set_type('straight');
         end
@@ -331,7 +331,7 @@ for rep = 1:num_rep
             lgd = legend([h0.r_traj(1) h0.r_traj(2) h0.y(1)], 'Robot 1', 'Robot 2', 'Targets', 'location', 'northeast');
             lgd.FontSize = 12;
             legend boxoff;
-            axis([-200,900,-200,900]);
+            axis([-700,700,-200,1200]);
             if strcmp(planner_name, 'bsg')
                 title('BSG: 2 Robots vs. 3 Non-Adversarial Targets [2X]', 'FontSize', 15);
             else
