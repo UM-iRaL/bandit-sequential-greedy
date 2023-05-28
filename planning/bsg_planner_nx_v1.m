@@ -19,6 +19,8 @@ classdef bsg_planner_nx_v1 < handle
         action_prob_dist;
         loss;
         loss_estm;
+        reward;
+        reward_estm;
         
         %
         som;
@@ -55,7 +57,11 @@ classdef bsg_planner_nx_v1 < handle
             this.action_prob_dist = zeros(n_time_step, this.n_actions);
             this.loss = zeros(n_time_step, this.n_actions);
             this.loss_estm = zeros(n_time_step, this.n_actions);
-                        
+            
+            % reward based
+            this.reward = zeros(n_time_step, this.n_actions);
+            this.reward_estm = zeros(n_time_step, this.n_actions);
+
             this.som.r_sense = r_sense;
             this.som.fov = fov;
             this.som.stdev_z = stdev_z;
@@ -72,6 +78,11 @@ classdef bsg_planner_nx_v1 < handle
                 %nxt_a_idx = this.next_action_index(t);
                 this.loss_estm(t, this.selected_action_index(t)) = this.loss(t, this.selected_action_index(t)) /...
                     (this.action_prob_dist(t, this.selected_action_index(t)) + this.gamma(j));
+                
+                % reward based
+                this.reward_estm(t, this.selected_action_index(t)) = this.reward(t, this.selected_action_index(t)) /...
+                    (this.action_prob_dist(t, this.selected_action_index(t)) + this.gamma(j));
+                
                 v = zeros(this.n_actions,1);
                 for i = 1 : this.n_actions
                     v(i) = this.action_weight(t, j, i) * exp(-this.eta(j)*this.loss_estm(t, i));                    
