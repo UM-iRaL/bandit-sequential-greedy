@@ -8,6 +8,8 @@ from Zirui Xu, Xiaofeng Lin and Vasileios Tzoumas at the University of Michigan,
 
 - run ```two_vs_three_scene.m```
 
+## Acknowledgement
+We would like to thank Professor [Nikolay Atanasov](https://natanaso.github.io/) for giving his advice and codes.
 ## License
 The project is licensed under MIT License
 

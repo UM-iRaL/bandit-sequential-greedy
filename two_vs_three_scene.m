@@ -12,7 +12,7 @@ vid_name = strcat(strcat('video\two_vs_three_', planner_name),'_test.mp4');
 mode = 'experiment';
 % Experiment parameters
 Horizon = 100;
-num_rep = 7;
+num_rep = 10;
 run_len = 2000;
 % run_len = 40;
 dT = Horizon / run_len;
@@ -22,10 +22,6 @@ map_size = 100;
 rng(1,'philox');
 
 % Action set for robots
-% [Vx, Vy] = meshgrid([1, 0, -1],[1, 0, -1]);
-% ACTION_SET = transpose([Vx(:), Vy(:)]);
-% ACTION_SET = normalize(ACTION_SET, 1, "norm");
-% ACTION_SET(isnan(ACTION_SET)) = 0;
 directions = [0:5] * pi/3;
 ACTION_SET = [cos(directions); sin(directions)];
 
@@ -60,8 +56,6 @@ reward = zeros(num_robot, run_len, num_rep);
 min_dist = zeros(num_tg, run_len, num_rep);
 
 
-% planner_name = 'bsg';
-
 for rep = 1:num_rep
     if strcmp(mode, 'analysis')
         viz = false;
@@ -85,14 +79,15 @@ for rep = 1:num_rep
         G(r) = greedy_planner_v2(num_robot, r, ACTION_SET, R(r).T, R(r).r_sense,...
             R(r).fov);
     end
+    % settings of targets.
     v_tg = [0.3; 0.5; 0.72]*20;
     yaw_tg = [0; deg2rad(90); deg2rad(-90)];
     motion_tg = ["straight"; "straight"; "circle"];
     type_tg = ["normal"; "normal"; "normal"];
     dT_tg = [Horizon / run_len; Horizon / run_len; Horizon / run_len];
     T = init_targets_array(num_tg, type_tg, v_tg, tg_true(:,:, 1, rep), yaw_tg, run_len, motion_tg, dT_tg);
+    
     % Visualization
-
     if viz
         figure('Color',[1 1 1],'Position',[0,0,900,800]);
         hold on;
@@ -131,9 +126,6 @@ for rep = 1:num_rep
         ylabel('y [m]','FontSize',15);
         hold off;
         drawnow;
-        if rep == 7
-            vid = true;
-        end
         if vid
             writerObj = VideoWriter(vid_name, 'MPEG-4');
             writerObj.FrameRate = 40;
@@ -145,10 +137,6 @@ for rep = 1:num_rep
 
     % Sense -> Log Measurements -> Plan Moves -> Move Targets -> Move Robots
     viz = false;
-    if rep == 7
-        viz = true;
-        vid = true;
-    end
     for t = 1:run_len
         if t==run_len-1
             if strcmp(mode, 'experiment')
@@ -276,8 +264,7 @@ for rep = 1:num_rep
             r_senses(i) = R(r).r_sense;
             fovs(i) = R(r).fov;
         end
-
-                
+      
         if strcmp(planner_name, 'bsg')
             % BSG: update experts after selecting actions
             prev_robot_states = zeros(3, 0);
