@@ -38,12 +38,10 @@ The project is licensed under MIT License
 If you have an academic use, please cite:
 
 ```
-@misc{xu2023bandit,
-      title={Bandit Submodular Maximization for Multi-Robot Coordination in Unpredictable and Partially Observable Environments}, 
-      author={Zirui Xu and Xiaofeng Lin and Vasileios Tzoumas},
-      year={2023},
-      eprint={2305.12795},
-      archivePrefix={arXiv},
-      primaryClass={eess.SY}
+@inproceedings{xu2023bandit,
+  title={Bandit Submodular Maximization for Multi-Robot Coordination in Unpredictable and Partially Observable Environments},
+  author={Xu, Zirui and Lin, Xiaofeng and Tzoumas, Vasileios},
+  journal={Robotics: Science and Systems},
+  year={2023}
 }
 ```
