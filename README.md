@@ -3,7 +3,7 @@
 ## About
 This repository holds the implementation code for the simulation scenario with 2 robots vs. 3 non-adversarial targets that appears in the paper 
 
-Zirui Xu, Xiaofeng Lin, and Vasileios Tzoumas, [``Bandit Submodular Maximization for Multi-Robot Coordination in Unpredictable and Partially Observable Environments,''](https://arxiv.org/abs/2305.12795), Robotics: Science and Systems, 2023.
+Zirui Xu, Xiaofeng Lin, and Vasileios Tzoumas, ["Bandit Submodular Maximization for Multi-Robot Coordination in Unpredictable and Partially Observable Environments,"](https://arxiv.org/abs/2305.12795) Robotics: Science and Systems, 2023.
 
 ### Run the simulation
 - run ```main.m``` 
@@ -32,7 +32,7 @@ To modify settings of robots and targets, please change the following parameters
 
 
 ## Acknowledgement
-We thank [Nikolay Atanasov](https://natanaso.github.io/) for sharing the code for [``Decentralized active information acquisition: Theory and application to multi-robot SLAM''](https://natanaso.github.io/ref/Atanasov_ActiveInformationAcquisition_ICRA15.pdf).
+We thank [Nikolay Atanasov](https://natanaso.github.io/) for sharing the code for ["Decentralized active information acquisition: Theory and application to multi-robot SLAM"](https://natanaso.github.io/ref/Atanasov_ActiveInformationAcquisition_ICRA15.pdf).
 
 ## License
 The project is licensed under MIT License
