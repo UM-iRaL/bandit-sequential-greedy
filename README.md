@@ -35,7 +35,7 @@ To modify settings of robots and targets, please change the following parameters
 We thank [Nikolay Atanasov](https://natanaso.github.io/) for sharing the code for ["Decentralized active information acquisition: Theory and application to multi-robot SLAM"](https://natanaso.github.io/ref/Atanasov_ActiveInformationAcquisition_ICRA15.pdf).
 
 ## License
-The project is licensed under MIT License
+The project is licensed under MIT License.
 
 ## Citation
 If you have an academic use, please cite:
