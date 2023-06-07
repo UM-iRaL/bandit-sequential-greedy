@@ -13,21 +13,21 @@ Zirui Xu, Xiaofeng Lin, and Vasileios Tzoumas, [``Bandit Submodular Maximization
 
 To change the number of robots/the number of targets/the type of a target, please modify the following parameters in ```main.m```:
 ```matlab
-    num_robot % number of robots
-    num_tg % number of targets
-    type_tg % type of targets ("normal" or "adversarial")
+    num_robot  % number of robots
+    num_tg     % number of targets
+    type_tg    % type of targets ("normal" or "adversarial")
 ```
 
 To modify settings of robots and targets, please change the following parameters in ``` scenarios_settings.m``` (notice all variables should have matching dimensions):
 ```matlab
-    v_robot      % speed of robots
-    r_senses     % sensing range of robots
-    fovs         % field of view in degree
-    v_tg         % speed of targets
-    yaw_tg       % initial yaw angles of targets
-    motion_tg    % type of motion of targets (circle, straight)
-    x_true_init  % initial pose of robots
-    tg_true_init % initial pose of targets
+    v_robot       % speed of robots
+    r_senses      % sensing range of robots
+    fovs          % field of view in degree
+    v_tg          % speed of targets
+    yaw_tg        % initial yaw angles of targets
+    motion_tg     % type of motion of targets (circle, straight)
+    x_true_init   % initial pose of robots
+    tg_true_init  % initial pose of targets
 ```
 
 
